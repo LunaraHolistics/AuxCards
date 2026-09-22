@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v3.0
+Auxiliar de Cartomancia & Oráculos v3.1
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -7,8 +7,9 @@ Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Ton
 v2.1: Acesso a secrets à prova de crash.
 v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
 v2.3: Retry automático com backoff para erros transitórios (503/429/5xx).
-v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL)
-      integrada à interface e ao relatório PDF.
+v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL).
+v3.1: Anti-duplicata de cartas nos menus + Mesa Visual/PDF com as IMAGENS REAIS
+      das cartas vindas de assets/cartas/ (cigano/ e taro/).
 """
 
 import os
@@ -18,8 +19,10 @@ import time
 import math
 import random
 import sqlite3
+import unicodedata
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFont
@@ -61,6 +64,10 @@ MAX_TENTATIVAS = 4
 ESPERA_BASE_SEGUNDOS = 4
 
 PLACEHOLDER_CARTA = "-- Selecione uma carta --"
+
+# Pasta com as imagens reais das cartas (opcional; se não existir, a mesa
+# virtual desenha cartas estilizadas com o nome).
+PASTA_CARTAS = Path(__file__).parent / "assets" / "cartas"
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -422,11 +429,11 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
             pdf.cell(0, 6, f"  - {pos}: {carta}", ln=True)
         pdf.ln(5)
 
-    # Página exclusiva com a Mesa Visual (se existir)
+    # Página exclusiva com a Mesa Visual (com arte real, se houver assets)
     if imagem_mesa is not None:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 8, "Representacao Visual da Tiragem (Mesa Virtual)", ln=True, align="C")
+        pdf.cell(0, 8, "Representacao Visual da Tiragem (Mesa)", ln=True, align="C")
         pdf.ln(4)
         buf = BytesIO()
         imagem_mesa.save(buf, format="PNG")
@@ -436,7 +443,7 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
         pdf.image(buf, x=15, y=pdf.get_y() + 2, w=w_mm, h=h_mm)
         pdf.ln(h_mm + 10)
         pdf.set_font("Helvetica", "I", 9)
-        pdf.cell(0, 5, "Mesa virtual gerada automaticamente pelo sistema.", ln=True, align="C")
+        pdf.cell(0, 5, "Mesa gerada automaticamente pelo sistema.", ln=True, align="C")
 
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Interpretacao Oracular", ln=True)
@@ -453,12 +460,56 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.cell(0, 5, "Documento gerado pelo sistema 'Auxiliar de Cartomancia & Oraculos'", ln=True, align="C")
     pdf.cell(0, 5, "Leitura baseada em tendencias energeticas - Respeite seu livre-arbitrio.", ln=True, align="C")
 
-    # CORREÇÃO v3.0: fpdf2 retorna bytearray; o Streamlit exige bytes.
+    # fpdf2 retorna bytearray; o Streamlit exige bytes.
     try:
         saida = pdf.output(dest="S")
     except TypeError:
         saida = pdf.output()
     return bytes(saida)
+
+# ==========================================
+# IMAGENS REAIS DAS CARTAS (assets/cartas/)
+# ==========================================
+def _normalizar_texto(texto):
+    """Remove acentos, pontuação e espaços para casar nome de carta com arquivo."""
+    txt = unicodedata.normalize("NFD", str(texto))
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    txt = txt.lower()
+    return re.sub(r"[^a-z0-9]+", "", txt)
+
+@st.cache_data(show_spinner=False)
+def _mapa_imagens_cartas():
+    """Varre assets/cartas/ e indexa imagens por nome normalizado + pasta."""
+    indice = {}
+    if not PASTA_CARTAS.exists():
+        return indice
+    for arquivo in sorted(PASTA_CARTAS.rglob("*")):
+        if arquivo.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+            chave = _normalizar_texto(arquivo.stem)
+            pasta = _normalizar_texto(arquivo.parent.name)
+            indice.setdefault(chave, []).append((str(arquivo), pasta))
+    return indice
+
+def obter_imagem_carta(nome_carta, oraculo):
+    """Retorna a imagem PIL da carta, se existir em assets/cartas/."""
+    if not nome_carta or nome_carta == PLACEHOLDER_CARTA:
+        return None
+    indice = _mapa_imagens_cartas()
+    if not indice:
+        return None
+    chave = _normalizar_texto(nome_carta)
+    candidatos = indice.get(chave)
+    if not candidatos:
+        return None
+    if oraculo.startswith("Baralho"):
+        preferidos = [c for c in candidatos if ("cigano" in c[1] or "lenormand" in c[1])]
+    else:
+        preferidos = [c for c in candidatos if ("taro" in c[1] or "tarot" in c[1])]
+    caminho = (preferidos or candidatos)[0][0]
+    try:
+        return Image.open(caminho).convert("RGB")
+    except Exception:
+        return None
 
 # ==========================================
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
@@ -506,7 +557,7 @@ def _layout_mesa(metodo, n_posicoes):
     return centros, (card_w, card_h)
 
 def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
-    """Desenha uma mesa virtual (feltro + moldura) com as cartas do método."""
+    """Desenha a mesa virtual; usa a ARTE REAL da carta se existir em assets/."""
     largura, altura = 1600, 1000
     img = Image.new("RGB", (largura, altura), (28, 58, 48))
     draw = ImageDraw.Draw(img)
@@ -527,28 +578,41 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     for idx, (carta, (cx, cy)) in enumerate(zip(cartas_ordem, centros), start=1):
         x0, y0 = cx - cw // 2, cy - ch // 2
         x1, y1 = cx + cw // 2, cy + ch // 2
-        # Sombra
-        draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
-        # Face da carta
-        draw.rounded_rectangle([x0, y0, x1, y1], radius=16, fill=(246, 240, 224), outline=(120, 90, 40), width=3)
-        draw.rounded_rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], radius=10, outline=(196, 168, 90), width=2)
-        # Rótulo da posição
-        draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
-        # Nome da carta quebrado em linhas
-        nome = carta if carta else "(vazio)"
-        linhas = []
-        for parte in str(nome).split():
-            if linhas and len(linhas[-1]) + len(parte) + 1 <= 14:
-                linhas[-1] += " " + parte
-            else:
-                linhas.append(parte)
-        lh = 30
-        y_txt = cy - (len(linhas) - 1) * lh // 2
-        for linha in linhas:
-            draw.text((cx, y_txt), linha, font=fonte_carta, fill=(40, 30, 20), anchor="mm")
-            y_txt += lh
 
-    rodape = "Mesa virtual gerada pelo Auxiliar de Cartomancia & Oraculos"
+        # Rótulo da posição (sempre visível)
+        draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
+
+        arte = obter_imagem_carta(carta, oraculo) if carta else None
+
+        if arte is not None:
+            # Sombra + arte real redimensionada + moldura dourada
+            draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
+            ratio = min(cw / arte.width, ch / arte.height)
+            nw = max(1, int(arte.width * ratio))
+            nh = max(1, int(arte.height * ratio))
+            arte_rs = arte.resize((nw, nh))
+            px, py = x0 + (cw - nw) // 2, y0 + (ch - nh) // 2
+            img.paste(arte_rs, (px, py))
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=16, outline=(196, 168, 90), width=3)
+        else:
+            # Fallback: carta estilizada desenhada com o nome
+            draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=16, fill=(246, 240, 224), outline=(120, 90, 40), width=3)
+            draw.rounded_rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], radius=10, outline=(196, 168, 90), width=2)
+            nome = carta if carta else "(vazio)"
+            linhas = []
+            for parte in str(nome).split():
+                if linhas and len(linhas[-1]) + len(parte) + 1 <= 14:
+                    linhas[-1] += " " + parte
+                else:
+                    linhas.append(parte)
+            lh = 30
+            y_txt = cy - (len(linhas) - 1) * lh // 2
+            for linha in linhas:
+                draw.text((cx, y_txt), linha, font=fonte_carta, fill=(40, 30, 20), anchor="mm")
+                y_txt += lh
+
+    rodape = "Mesa gerada pelo Auxiliar de Cartomancia & Oraculos"
     draw.text((largura // 2, altura - 52), rodape, font=fonte_pos, fill=(200, 190, 160), anchor="mm")
     return img
 
@@ -629,7 +693,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍ Dados do Consulente", expanded=True):
+    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -726,16 +790,39 @@ with tab_nova:
                 st.session_state[f"card_{rotulo}"] = PLACEHOLDER_CARTA
             st.session_state["mesa_img"] = None
 
+        # ---- Selectboxes COM ANTI-DUPLICATA ----
         cartas_selecionadas = {}
         with st.container(height=380, border=True):
             for rotulo in rotulos_posicoes:
+                key = f"card_{rotulo}"
+                valor_atual = st.session_state.get(key, PLACEHOLDER_CARTA)
+                usadas_antes = list(cartas_selecionadas.values())
+
+                # Conflito (mesma carta em posição anterior): a posterior é limpa
+                if valor_atual in usadas_antes:
+                    valor_atual = PLACEHOLDER_CARTA
+                    st.session_state[key] = valor_atual
+
+                # Opções: apenas cartas ainda não usadas nesta tiragem
+                pool = [c for c in opcoes_cartas if c != PLACEHOLDER_CARTA and c not in usadas_antes]
+                opcoes = [PLACEHOLDER_CARTA] + pool
+
+                # Baralho trocado / carta indisponível: reseta com segurança
+                if valor_atual not in opcoes:
+                    valor_atual = PLACEHOLDER_CARTA
+                    st.session_state[key] = valor_atual
+
                 escolha = st.selectbox(
                     rotulo,
-                    options=opcoes_cartas,
-                    key=f"card_{rotulo}"
+                    options=opcoes,
+                    index=opcoes.index(valor_atual),
+                    key=key,
+                    help="Cartas já usadas em outras posições não aparecem aqui.",
                 )
                 if escolha != PLACEHOLDER_CARTA:
                     cartas_selecionadas[rotulo] = escolha
+
+        st.caption("🔒 Anti-duplicata ativo: cada carta só pode aparecer uma vez na tiragem.")
 
         # ---- Botões de sorteio, limpeza e mesa visual ----
         col_b1, col_b2, col_b3 = st.columns(3)
@@ -981,7 +1068,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v3.0 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v3.1 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
