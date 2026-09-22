@@ -1,9 +1,10 @@
 """
-Auxiliar de Cartomancia & Oráculos v2.0
+Auxiliar de Cartomancia & Oráculos v2.1
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai e o modelo gemini-2.5-flash.
 
 Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Tons de Leitura.
+v2.1: Acesso a secrets à prova de crash (StreamlitSecretNotFoundError).
 """
 
 import os
@@ -11,7 +12,6 @@ import re
 import json
 import sqlite3
 from datetime import datetime
-from io import BytesIO
 
 import streamlit as st
 from PIL import Image
@@ -39,6 +39,21 @@ except ImportError:
 # CONFIGURAÇÕES GLOBAIS
 # ==========================================
 DB_PATH = "leituras.db"
+
+# ==========================================
+# SEGURANÇA - LEITURA DA CHAVE DE API
+# ==========================================
+def obter_chave_api():
+    """Obtém a chave de API dos secrets do Streamlit ou de variável de ambiente.
+    Nunca crasha mesmo que nenhum secrets.toml exista no ambiente."""
+    chave = ""
+    try:
+        chave = st.secrets.get("GEMINI_API_KEY", "") or ""
+    except Exception:
+        chave = ""
+    if not chave:
+        chave = os.environ.get("GEMINI_API_KEY", "") or ""
+    return chave.strip()
 
 # ==========================================
 # BANCO DE DADOS - HISTÓRICO DE LEITURAS
@@ -120,7 +135,6 @@ def delete_reading(reading_id):
     conn.commit()
     conn.close()
 
-# Inicializa o banco ao iniciar
 init_db()
 
 # ==========================================
@@ -268,7 +282,6 @@ FOCO PRINCIPAL:
 # ==========================================
 def sanitizar_texto_pdf(texto):
     """Remove emojis e caracteres não suportados pelo PDF (latin-1)."""
-    # Substitui emojis e símbolos comuns por marcadores de texto
     replacements = {
         '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
         '✨': '*', '⭐': '*', '💫': '*',
@@ -280,7 +293,6 @@ def sanitizar_texto_pdf(texto):
     }
     for k, v in replacements.items():
         texto = texto.replace(k, v)
-    # Remove qualquer caractere fora do latin-1
     texto = re.sub(r'[^\x00-\xFF]', '', texto)
     return texto
 
@@ -290,7 +302,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
 
-    # Cabeçalho
     if modo_profissional and dados_oraculista:
         pdf.set_font("Helvetica", "B", 18)
         pdf.cell(0, 10, sanitizar_texto_pdf(dados_oraculista.get("nome", "Oraculista")), ln=True, align="C")
@@ -308,7 +319,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.cell(0, 6, f"Gerado em: {dados_leitura['data_hora']}", ln=True, align="C")
     pdf.ln(8)
 
-    # Dados do Consulente
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Dados da Consulta", ln=True)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
@@ -327,7 +337,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.cell(0, 6, sanitizar_texto_pdf(dados_leitura["tom_leitura"]), ln=True)
     pdf.ln(5)
 
-    # Pergunta
     if dados_leitura.get("pergunta"):
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(0, 8, "Pergunta / Contexto", ln=True)
@@ -337,7 +346,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
         pdf.multi_cell(0, 6, sanitizar_texto_pdf(dados_leitura["pergunta"]))
         pdf.ln(5)
 
-    # Cartas Sorteadas
     if dados_leitura.get("cartas"):
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(0, 8, "Cartas Sorteadas", ln=True)
@@ -348,7 +356,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
             pdf.cell(0, 6, f"  - {pos}: {carta}", ln=True)
         pdf.ln(5)
 
-    # Interpretação
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Interpretacao Oracular", ln=True)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
@@ -357,7 +364,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     interpretacao = sanitizar_texto_pdf(dados_leitura.get("interpretacao", ""))
     pdf.multi_cell(0, 6, interpretacao)
 
-    # Rodapé
     pdf.ln(10)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(3)
@@ -377,20 +383,18 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Inicializa session_state
 if "interpretacao_atual" not in st.session_state:
     st.session_state.interpretacao_atual = None
 if "dados_leitura_atual" not in st.session_state:
     st.session_state.dados_leitura_atual = None
 
 # ==========================================
-# BARRA LATERAL (SIDEBAR) - REORGANIZADA
+# BARRA LATERAL (SIDEBAR)
 # ==========================================
 with st.sidebar:
     st.markdown("# 🔮 Oráculo")
     st.markdown("---")
 
-    # 1. Modo de Atendimento
     with st.expander("🎯 Tipo de Atendimento", expanded=True):
         modo_atendimento = st.radio(
             "Modalidade da Leitura",
@@ -412,7 +416,6 @@ with st.sidebar:
             nome_oraculista = ""
             contato_oraculista = ""
 
-    # 2. Oráculo e Método
     with st.expander("🃏 Oráculo e Método", expanded=True):
         oracle_choice = st.selectbox(
             "Sistema Simbólico",
@@ -438,7 +441,6 @@ with st.sidebar:
         else:
             num_free_cards = 0
 
-    # 3. Tom da Leitura
     with st.expander("🎨 Tom da Leitura", expanded=True):
         tom_leitura = st.selectbox(
             "Estilo de Interpretação",
@@ -446,7 +448,6 @@ with st.sidebar:
             index=0,
         )
 
-    # 4. Dados do Consulente
     with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
@@ -501,7 +502,7 @@ with tab_nova:
         )
 
         uploaded_image_file = st.file_uploader(
-            "📷 Foto da Mesa / Tiragem (Opcional)",
+            "📷 Foto da Mesa / Tiragem (Opcional - Formatos: JPG, JPEG, PNG)",
             type=["jpg", "jpeg", "png"],
         )
 
@@ -550,15 +551,15 @@ with tab_nova:
     # PROCESSAMENTO E CHAMADA DA API GEMINI
     # ==========================================
     if analyze_button:
-        active_api_key = (
-            st.secrets.get("GEMINI_API_KEY", "")
-            or os.environ.get("GEMINI_API_KEY", "")
-        ).strip()
+        active_api_key = obter_chave_api()
 
-        # Validações
         erros = []
         if not active_api_key:
-            erros.append("Chave de API não configurada. Configure no `.streamlit/secrets.toml` ou como variável de ambiente.")
+            erros.append(
+                "Chave de API não configurada. Crie o arquivo `.streamlit/secrets.toml` "
+                "com `GEMINI_API_KEY = \"sua_chave\"` (local) ou cadastre em "
+                "Settings → Secrets no Streamlit Cloud."
+            )
         if not question_context.strip():
             erros.append("Informe a Pergunta / Contexto da Tiragem.")
         if modo_profissional and not nome_consulente.strip():
@@ -612,7 +613,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                         interpretation_text = response.text
                         data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-                        # Salva no session_state
                         dados_leitura = {
                             "data_hora": data_hora,
                             "nome_consulente": nome_consulente,
@@ -628,7 +628,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                         st.session_state.dados_leitura_atual = dados_leitura
                         st.session_state.interpretacao_atual = interpretation_text
 
-                        # Salva no banco de histórico
                         save_reading(dados_leitura)
 
                         st.success(f"✨ Tiragem interpretada e salva no histórico ({data_hora})!")
@@ -655,7 +654,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
         col_exp1, col_exp2 = st.columns(2)
 
         with col_exp1:
-            # Exportação TXT
             st.download_button(
                 label="📄 Baixar Interpretação (.txt)",
                 data=st.session_state.interpretacao_atual.encode("utf-8-sig"),
@@ -665,7 +663,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             )
 
         with col_exp2:
-            # Exportação PDF
             try:
                 dados_orac_pdf = {
                     "nome": nome_oraculista,
@@ -703,7 +700,6 @@ with tab_historico:
     if not leituras:
         st.info("📭 Nenhuma leitura salva ainda. Realize sua primeira análise na aba **Nova Leitura**.")
     else:
-        # Tabela do histórico
         for leitura in leituras:
             reading_id, data_hora, nome_cons, oraculo, metodo, tom = leitura
 
@@ -734,7 +730,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     "<center><small style='color: #777;'>"
-    "Auxiliar de Cartomancia & Oráculos v2.0 • Google Gemini API • "
+    "Auxiliar de Cartomancia & Oráculos v2.1 • Google Gemini API • "
     "Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     "</small></center>",
     unsafe_allow_html=True,
