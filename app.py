@@ -1,10 +1,11 @@
 """
-Auxiliar de Cartomancia & Oráculos v2.1
+Auxiliar de Cartomancia & Oráculos v2.2
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
-utilizando a biblioteca oficial google-genai e o modelo gemini-2.5-flash.
+utilizando a biblioteca oficial google-genai e o modelo definido em MODELO_GEMINI.
 
 Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Tons de Leitura.
-v2.1: Acesso a secrets à prova de crash (StreamlitSecretNotFoundError).
+v2.1: Acesso a secrets à prova de crash.
+v2.2: Nome do modelo centralizado na constante MODELO_GEMINI (gemini-3.6-flash).
 """
 
 import os
@@ -39,6 +40,11 @@ except ImportError:
 # CONFIGURAÇÕES GLOBAIS
 # ==========================================
 DB_PATH = "leituras.db"
+
+# Modelo ativo do Gemini.
+# ATENÇÃO (set/2026): gemini-2.5-flash foi descontinuado para novos usuários.
+# Para trocar de modelo no futuro, altere APENAS esta linha.
+MODELO_GEMINI = "gemini-3.6-flash"
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -448,7 +454,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -461,7 +467,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(
-        "<small style='color: #888;'>Serviço via Google Gemini API (<code>gemini-2.5-flash</code>).</small>",
+        f"<small style='color: #888;'>Serviço via Google Gemini API (<code>{MODELO_GEMINI}</code>).</small>",
         unsafe_allow_html=True,
     )
 
@@ -601,7 +607,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                     contents_payload.append(user_prompt_text)
 
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model=MODELO_GEMINI,
                         contents=contents_payload,
                         config=types.GenerateContentConfig(
                             system_instruction=SYSTEM_INSTRUCTIONS[tom_leitura],
@@ -729,9 +735,9 @@ with tab_historico:
 # ==========================================
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
-    "<center><small style='color: #777;'>"
-    "Auxiliar de Cartomancia & Oráculos v2.1 • Google Gemini API • "
-    "Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
-    "</small></center>",
+    f"<center><small style='color: #777;'>"
+    f"Auxiliar de Cartomancia & Oráculos v2.2 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
+    f"</small></center>",
     unsafe_allow_html=True,
 )
