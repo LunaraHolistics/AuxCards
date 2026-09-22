@@ -1,0 +1,6 @@
+{
+  "name": "Auxiliar de Cartomancia & Oráculos",
+  "description": "Aplicativo para interpretação sintática e ética de tiragens de Baralho Cigano e Tarô Tradicional com Google Gemini.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
