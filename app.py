@@ -1,16 +1,18 @@
 """
-Auxiliar de Cartomancia & Oráculos v2.2
+Auxiliar de Cartomancia & Oráculos v2.3
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
-utilizando a biblioteca oficial google-genai e o modelo definido em MODELO_GEMINI.
+utilizando a biblioteca oficial google-genai.
 
 Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Tons de Leitura.
 v2.1: Acesso a secrets à prova de crash.
-v2.2: Nome do modelo centralizado na constante MODELO_GEMINI (gemini-3.6-flash).
+v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
+v2.3: Retry automático com backoff para erros transitórios (503/429/5xx) + modelo reserva.
 """
 
 import os
 import re
 import json
+import time
 import sqlite3
 from datetime import datetime
 
@@ -42,9 +44,17 @@ except ImportError:
 DB_PATH = "leituras.db"
 
 # Modelo ativo do Gemini.
-# ATENÇÃO (set/2026): gemini-2.5-flash foi descontinuado para novos usuários.
 # Para trocar de modelo no futuro, altere APENAS esta linha.
 MODELO_GEMINI = "gemini-3.6-flash"
+
+# Modelo reserva (opcional): usado UMA única vez se todas as tentativas do
+# modelo principal falharem. Deixe "" para desativar.
+# Exemplo: MODELO_RESERVA = "gemini-3.6-pro" (se seu plano tiver acesso).
+MODELO_RESERVA = ""
+
+# Resiliência da chamada à API
+MAX_TENTATIVAS = 4        # 1 chamada inicial + 3 novas tentativas
+ESPERA_BASE_SEGUNDOS = 4  # backoff: 4s, 8s, 12s entre tentativas
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -60,6 +70,52 @@ def obter_chave_api():
     if not chave:
         chave = os.environ.get("GEMINI_API_KEY", "") or ""
     return chave.strip()
+
+# ==========================================
+# RESILIÊNCIA - RETRY COM BACKOFF
+# ==========================================
+def eh_erroro_transitorio(exc):
+    """Detecta erros de capacidade/disponibilidade (503, 429, 5xx, overload)."""
+    txt = str(exc).upper()
+    marcadores = (
+        "503", "429", "500", "502", "504",
+        "UNAVAILABLE", "RESOURCE_EXHAUSTED", "DEADLINE_EXCEEDED",
+        "OVERLOADED", "HIGH DEMAND", "TRY AGAIN LATER",
+    )
+    return any(m in txt for m in marcadores)
+
+def chamar_gemini(client, contents, config, ao_tentar=None):
+    """Chama o Gemini com novas tentativas automáticas em erros transitórios.
+    Se tudo falhar e houver MODELO_RESERVA configurado, tenta-o uma única vez."""
+    ultima_exc = None
+    for tentativa in range(1, MAX_TENTATIVAS + 1):
+        if ao_tentar:
+            ao_tentar(tentativa, MAX_TENTATIVAS)
+        try:
+            return client.models.generate_content(
+                model=MODELO_GEMINI,
+                contents=contents,
+                config=config,
+            )
+        except Exception as exc:
+            ultima_exc = exc
+            if not eh_erroro_transitorio(exc) or tentativa == MAX_TENTATIVAS:
+                break
+            time.sleep(ESPERA_BASE_SEGUNDOS * tentativa)
+
+    if MODELO_RESERVA:
+        try:
+            if ao_tentar:
+                ao_tentar(1, 1)
+            return client.models.generate_content(
+                model=MODELO_RESERVA,
+                contents=contents,
+                config=config,
+            )
+        except Exception:
+            pass
+
+    raise ultima_exc
 
 # ==========================================
 # BANCO DE DADOS - HISTÓRICO DE LEITURAS
@@ -454,7 +510,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -577,15 +633,14 @@ with tab_nova:
             for erro in erros:
                 st.error(f"⚠️ {erro}")
         else:
-            with st.spinner("✨ Consultando os arcanos com o Google Gemini..."):
-                try:
-                    client = genai.Client(api_key=active_api_key)
+            try:
+                client = genai.Client(api_key=active_api_key)
 
-                    texto_cartas_formatado = "\n".join(
-                        [f"- {pos}: {carta}" for pos, carta in cartas_selecionadas.items()]
-                    )
+                texto_cartas_formatado = "\n".join(
+                    [f"- {pos}: {carta}" for pos, carta in cartas_selecionadas.items()]
+                )
 
-                    user_prompt_text = f"""
+                user_prompt_text = f"""
 Por favor, realize a interpretação aprofundada da seguinte tiragem oracular:
 
 - **Oráculo Escolhido**: {oracle_choice}
@@ -601,46 +656,66 @@ Por favor, realize a interpretação aprofundada da seguinte tiragem oracular:
 Aplique rigorosamente todas as regras oraculares da system instruction.
 """
 
-                    contents_payload = []
-                    if image_for_gemini is not None:
-                        contents_payload.append(image_for_gemini)
-                    contents_payload.append(user_prompt_text)
+                contents_payload = []
+                if image_for_gemini is not None:
+                    contents_payload.append(image_for_gemini)
+                contents_payload.append(user_prompt_text)
 
-                    response = client.models.generate_content(
-                        model=MODELO_GEMINI,
-                        contents=contents_payload,
-                        config=types.GenerateContentConfig(
-                            system_instruction=SYSTEM_INSTRUCTIONS[tom_leitura],
-                            temperature=0.7,
-                        ),
+                config_gemini = types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTIONS[tom_leitura],
+                    temperature=0.7,
+                )
+
+                with st.status("✨ Consultando os arcanos com o Google Gemini...", expanded=False) as status:
+                    def _atualizar_progresso(tentativa, total):
+                        if total > 1:
+                            status.update(
+                                label=f"✨ Tentativa {tentativa} de {total} — "
+                                      f"picos de demanda podem exigir paciência..."
+                            )
+
+                    response = chamar_gemini(
+                        client,
+                        contents_payload,
+                        config_gemini,
+                        ao_tentar=_atualizar_progresso,
                     )
+                    status.update(label="✨ Interpretação concluída", state="complete")
 
-                    if response and response.text:
-                        interpretation_text = response.text
-                        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                if response and response.text:
+                    interpretation_text = response.text
+                    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-                        dados_leitura = {
-                            "data_hora": data_hora,
-                            "nome_consulente": nome_consulente,
-                            "signo_consulente": signo_consulente,
-                            "modo_atendimento": modo_atendimento,
-                            "oraculo": oracle_choice,
-                            "metodo": spread_choice,
-                            "tom_leitura": tom_leitura,
-                            "pergunta": question_context.strip(),
-                            "cartas": cartas_selecionadas,
-                            "interpretacao": interpretation_text,
-                        }
-                        st.session_state.dados_leitura_atual = dados_leitura
-                        st.session_state.interpretacao_atual = interpretation_text
+                    dados_leitura = {
+                        "data_hora": data_hora,
+                        "nome_consulente": nome_consulente,
+                        "signo_consulente": signo_consulente,
+                        "modo_atendimento": modo_atendimento,
+                        "oraculo": oracle_choice,
+                        "metodo": spread_choice,
+                        "tom_leitura": tom_leitura,
+                        "pergunta": question_context.strip(),
+                        "cartas": cartas_selecionadas,
+                        "interpretacao": interpretation_text,
+                    }
+                    st.session_state.dados_leitura_atual = dados_leitura
+                    st.session_state.interpretacao_atual = interpretation_text
 
-                        save_reading(dados_leitura)
+                    save_reading(dados_leitura)
 
-                        st.success(f"✨ Tiragem interpretada e salva no histórico ({data_hora})!")
-                    else:
-                        st.error("❌ Não foi possível gerar a resposta. Tente novamente.")
+                    st.success(f"✨ Tiragem interpretada e salva no histórico ({data_hora})!")
+                else:
+                    st.error("❌ Não foi possível gerar a resposta. Tente novamente.")
 
-                except Exception as e:
+            except Exception as e:
+                if eh_erroro_transitorio(e):
+                    st.error(
+                        "❌ **O oráculo está sob alta demanda (erro 503/429).** "
+                        "O app já tentou várias vezes automaticamente. "
+                        "Aguarde 1–2 minutos e clique em **Analisar Tiragem** novamente — "
+                        "picos de demanda do Google Gemini costumam passar rápido."
+                    )
+                else:
                     st.error(f"❌ **Erro durante a consulta:** `{str(e)}`")
 
     # ==========================================
@@ -736,7 +811,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v2.2 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v2.3 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
