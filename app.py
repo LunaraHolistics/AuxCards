@@ -1,23 +1,28 @@
 """
-Auxiliar de Cartomancia & Oráculos v2.3
+Auxiliar de Cartomancia & Oráculos v3.0
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
 Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Tons de Leitura.
 v2.1: Acesso a secrets à prova de crash.
 v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
-v2.3: Retry automático com backoff para erros transitórios (503/429/5xx) + modelo reserva.
+v2.3: Retry automático com backoff para erros transitórios (503/429/5xx).
+v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL)
+      integrada à interface e ao relatório PDF.
 """
 
 import os
 import re
 import json
 import time
+import math
+import random
 import sqlite3
 from datetime import datetime
+from io import BytesIO
 
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 
 try:
     from google import genai
@@ -49,12 +54,13 @@ MODELO_GEMINI = "gemini-3.6-flash"
 
 # Modelo reserva (opcional): usado UMA única vez se todas as tentativas do
 # modelo principal falharem. Deixe "" para desativar.
-# Exemplo: MODELO_RESERVA = "gemini-3.6-pro" (se seu plano tiver acesso).
 MODELO_RESERVA = ""
 
 # Resiliência da chamada à API
-MAX_TENTATIVAS = 4        # 1 chamada inicial + 3 novas tentativas
-ESPERA_BASE_SEGUNDOS = 4  # backoff: 4s, 8s, 12s entre tentativas
+MAX_TENTATIVAS = 4
+ESPERA_BASE_SEGUNDOS = 4
+
+PLACEHOLDER_CARTA = "-- Selecione uma carta --"
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -105,8 +111,6 @@ def chamar_gemini(client, contents, config, ao_tentar=None):
 
     if MODELO_RESERVA:
         try:
-            if ao_tentar:
-                ao_tentar(1, 1)
             return client.models.generate_content(
                 model=MODELO_RESERVA,
                 contents=contents,
@@ -203,7 +207,7 @@ init_db()
 # BANCO DE DADOS DE CARTAS E POSIÇÕES
 # ==========================================
 CARTAS_CIGANO = [
-    "-- Selecione uma carta --",
+    PLACEHOLDER_CARTA,
     "01. O Cavaleiro", "02. O Trevo", "03. O Navio", "04. A Casa",
     "05. A Árvore", "06. As Nuvens", "07. A Cobra", "08. O Caixão",
     "09. O Buquê", "10. A Foice", "11. O Chicote", "12. Os Pássaros",
@@ -216,7 +220,7 @@ CARTAS_CIGANO = [
 ]
 
 CARTAS_TARO = [
-    "-- Selecione uma carta --",
+    PLACEHOLDER_CARTA,
     # Arcanos Maiores
     "0. O Louco", "I. O Mago", "II. A Sacerdotisa", "III. A Imperatriz",
     "IV. O Imperador", "V. O Papa / O Hierofante", "VI. Os Enamorados",
@@ -348,7 +352,7 @@ def sanitizar_texto_pdf(texto):
         '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
         '✨': '*', '⭐': '*', '💫': '*',
         '—': '-', '→': '->', '←': '<-', '↔': '<->',
-        '•': '*', '✦': '*', '❖': '*',
+        '•': '-', '✦': '*', '❖': '*',
         '⚠️': '[!]', '❌': '[X]', '✅': '[OK]',
         '🔮': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
         '💾': '[SALVAR]', '📄': '[PG]', '📷': '[CAM]',
@@ -358,8 +362,8 @@ def sanitizar_texto_pdf(texto):
     texto = re.sub(r'[^\x00-\xFF]', '', texto)
     return texto
 
-def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None):
-    """Gera um PDF formatado da leitura oracular."""
+def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
+    """Gera um PDF formatado da leitura oracular, opcionalmente com a mesa visual."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -418,6 +422,22 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
             pdf.cell(0, 6, f"  - {pos}: {carta}", ln=True)
         pdf.ln(5)
 
+    # Página exclusiva com a Mesa Visual (se existir)
+    if imagem_mesa is not None:
+        pdf.add_page()
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.cell(0, 8, "Representacao Visual da Tiragem (Mesa Virtual)", ln=True, align="C")
+        pdf.ln(4)
+        buf = BytesIO()
+        imagem_mesa.save(buf, format="PNG")
+        buf.seek(0)
+        w_mm = 180.0
+        h_mm = w_mm * imagem_mesa.height / imagem_mesa.width
+        pdf.image(buf, x=15, y=pdf.get_y() + 2, w=w_mm, h=h_mm)
+        pdf.ln(h_mm + 10)
+        pdf.set_font("Helvetica", "I", 9)
+        pdf.cell(0, 5, "Mesa virtual gerada automaticamente pelo sistema.", ln=True, align="C")
+
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Interpretacao Oracular", ln=True)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
@@ -433,7 +453,104 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.cell(0, 5, "Documento gerado pelo sistema 'Auxiliar de Cartomancia & Oraculos'", ln=True, align="C")
     pdf.cell(0, 5, "Leitura baseada em tendencias energeticas - Respeite seu livre-arbitrio.", ln=True, align="C")
 
-    return pdf.output(dest="S")
+    # CORREÇÃO v3.0: fpdf2 retorna bytearray; o Streamlit exige bytes.
+    try:
+        saida = pdf.output(dest="S")
+    except TypeError:
+        saida = pdf.output()
+    return bytes(saida)
+
+# ==========================================
+# FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
+# ==========================================
+def _fonte(tamanho):
+    """Retorna a fonte padrão do Pillow no tamanho pedido, com fallback seguro."""
+    try:
+        return ImageFont.load_default(size=tamanho)
+    except Exception:
+        return ImageFont.load_default()
+
+def _layout_mesa(metodo, n_posicoes):
+    """Define os centros (x, y) e o tamanho (w, h) das cartas conforme o método."""
+    if metodo == "Linha de 3 Cartas" and n_posicoes == 3:
+        return [(500, 540), (800, 540), (1100, 540)], (240, 380)
+    if metodo == "Linha de 5 Cartas" and n_posicoes == 5:
+        return [(240, 540), (520, 540), (800, 540), (1080, 540), (1360, 540)], (220, 340)
+    if metodo.startswith("Bloco de 9") and n_posicoes == 9:
+        centros = []
+        for y in (300, 540, 780):
+            for x in (480, 800, 1120):
+                centros.append((x, y))
+        return centros, (190, 210)
+    if metodo.startswith("Cruz") and n_posicoes == 5:
+        return [(800, 540), (520, 540), (1080, 540), (800, 280), (800, 800)], (200, 300)
+    if metodo.startswith("Pirâmide") and n_posicoes == 7:
+        return [
+            (800, 220),
+            (520, 450), (800, 450), (1080, 450),
+            (660, 680), (940, 680),
+            (800, 890),
+        ], (170, 200)
+    # Layout genérico (Livre / Outros)
+    cols = 5 if n_posicoes <= 10 else 6
+    rows = math.ceil(n_posicoes / cols)
+    cell_h = 860 // rows
+    card_h = max(120, min(300, cell_h - 40))
+    card_w = int(card_h * 0.68)
+    centros = []
+    for i in range(n_posicoes):
+        r, c = divmod(i, cols)
+        x = 1600 // (cols + 1) * (c + 1)
+        y = 140 + cell_h * r + cell_h // 2
+        centros.append((x, y))
+    return centros, (card_w, card_h)
+
+def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
+    """Desenha uma mesa virtual (feltro + moldura) com as cartas do método."""
+    largura, altura = 1600, 1000
+    img = Image.new("RGB", (largura, altura), (28, 58, 48))
+    draw = ImageDraw.Draw(img)
+
+    # Moldura dourada dupla
+    draw.rectangle([18, 18, largura - 18, altura - 18], outline=(196, 168, 90), width=4)
+    draw.rectangle([30, 30, largura - 30, altura - 30], outline=(196, 168, 90), width=2)
+
+    fonte_titulo = _fonte(34)
+    fonte_carta = _fonte(24)
+    fonte_pos = _fonte(20)
+
+    titulo = f"{metodo}  -  {oraculo}"
+    draw.text((largura // 2, 62), titulo, font=fonte_titulo, fill=(240, 230, 200), anchor="mm")
+
+    centros, (cw, ch) = _layout_mesa(metodo, len(cartas_ordem))
+
+    for idx, (carta, (cx, cy)) in enumerate(zip(cartas_ordem, centros), start=1):
+        x0, y0 = cx - cw // 2, cy - ch // 2
+        x1, y1 = cx + cw // 2, cy + ch // 2
+        # Sombra
+        draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
+        # Face da carta
+        draw.rounded_rectangle([x0, y0, x1, y1], radius=16, fill=(246, 240, 224), outline=(120, 90, 40), width=3)
+        draw.rounded_rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], radius=10, outline=(196, 168, 90), width=2)
+        # Rótulo da posição
+        draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
+        # Nome da carta quebrado em linhas
+        nome = carta if carta else "(vazio)"
+        linhas = []
+        for parte in str(nome).split():
+            if linhas and len(linhas[-1]) + len(parte) + 1 <= 14:
+                linhas[-1] += " " + parte
+            else:
+                linhas.append(parte)
+        lh = 30
+        y_txt = cy - (len(linhas) - 1) * lh // 2
+        for linha in linhas:
+            draw.text((cx, y_txt), linha, font=fonte_carta, fill=(40, 30, 20), anchor="mm")
+            y_txt += lh
+
+    rodape = "Mesa virtual gerada pelo Auxiliar de Cartomancia & Oraculos"
+    draw.text((largura // 2, altura - 52), rodape, font=fonte_pos, fill=(200, 190, 160), anchor="mm")
+    return img
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -449,6 +566,8 @@ if "interpretacao_atual" not in st.session_state:
     st.session_state.interpretacao_atual = None
 if "dados_leitura_atual" not in st.session_state:
     st.session_state.dados_leitura_atual = None
+if "mesa_img" not in st.session_state:
+    st.session_state.mesa_img = None
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -510,7 +629,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍ Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -584,13 +703,28 @@ with tab_nova:
                 st.warning(f"Não foi possível processar a imagem: {img_err}")
 
     with col2:
-        st.markdown("**2. Selecione as Cartas de Cada Posição ***")
+        st.markdown("**2. Cartas de Cada Posição (manual ou sorteio) ***")
         opcoes_cartas = CARTAS_CIGANO if oracle_choice == "Baralho Cigano (Lenormand)" else CARTAS_TARO
 
         if spread_choice in ESTRUTURA_POSICOES:
             rotulos_posicoes = ESTRUTURA_POSICOES[spread_choice]
         else:
             rotulos_posicoes = [f"Carta {i+1}" for i in range(int(num_free_cards))]
+
+        # ---- Consumo dos comandos de sorteio/limpeza (ANTES dos selectboxes) ----
+        if st.session_state.get("sortear_agora"):
+            st.session_state["sortear_agora"] = False
+            pool = [c for c in opcoes_cartas if c != PLACEHOLDER_CARTA]
+            amostra = random.sample(pool, k=len(rotulos_posicoes))
+            for rotulo, carta in zip(rotulos_posicoes, amostra):
+                st.session_state[f"card_{rotulo}"] = carta
+            st.session_state["mesa_img"] = None
+
+        if st.session_state.get("limpar_cartas_agora"):
+            st.session_state["limpar_cartas_agora"] = False
+            for rotulo in rotulos_posicoes:
+                st.session_state[f"card_{rotulo}"] = PLACEHOLDER_CARTA
+            st.session_state["mesa_img"] = None
 
         cartas_selecionadas = {}
         with st.container(height=380, border=True):
@@ -600,8 +734,43 @@ with tab_nova:
                     options=opcoes_cartas,
                     key=f"card_{rotulo}"
                 )
-                if escolha != "-- Selecione uma carta --":
+                if escolha != PLACEHOLDER_CARTA:
                     cartas_selecionadas[rotulo] = escolha
+
+        # ---- Botões de sorteio, limpeza e mesa visual ----
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            if st.button(
+                "🎲 Sortear Cartas",
+                use_container_width=True,
+                help="Embaralha o baralho e preenche todas as posições aleatoriamente",
+            ):
+                st.session_state["sortear_agora"] = True
+                st.rerun()
+        with col_b2:
+            if st.button("🧹 Limpar Seleção", use_container_width=True):
+                st.session_state["limpar_cartas_agora"] = True
+                st.rerun()
+        with col_b3:
+            if st.button(
+                "🖼️ Gerar Mesa Visual",
+                use_container_width=True,
+                help="Desenha a mesa com as cartas para o relatório do cliente",
+            ):
+                if not cartas_selecionadas:
+                    st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
+                else:
+                    ordem = [cartas_selecionadas.get(r) for r in rotulos_posicoes]
+                    st.session_state["mesa_img"] = gerar_imagem_mesa(
+                        ordem, spread_choice, oracle_choice
+                    )
+
+        if st.session_state.get("mesa_img") is not None:
+            st.image(
+                st.session_state["mesa_img"],
+                caption="🖼️ Mesa virtual da tiragem",
+                use_container_width=True,
+            )
 
     analyze_button = st.button(
         "🔮 Analisar Tiragem",
@@ -753,7 +922,8 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                 pdf_bytes = gerar_pdf_leitura(
                     dados_leitura=dados,
                     modo_profissional=modo_profissional,
-                    dados_oraculista=dados_orac_pdf
+                    dados_oraculista=dados_orac_pdf,
+                    imagem_mesa=st.session_state.get("mesa_img"),
                 )
 
                 st.download_button(
@@ -811,7 +981,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v2.3 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v3.0 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
