@@ -1,8 +1,32 @@
-node_modules/
-build/
-dist/
-coverage/
+# Secrets e configurações locais
+.streamlit/secrets.toml
+*.env
+.env.local
+
+# Ambiente virtual Python
+venv/
+env/
+.venv/
+
+# Byte-compiled / arquivos de cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Banco de dados local (NUNCA subir o histórico local)
+*.db
+*.sqlite3
+
+# Arquivos do sistema
 .DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
 *.log
-.env*
-!.env.example
