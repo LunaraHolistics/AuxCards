@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v3.1
+Auxiliar de Cartomancia & Oráculos v3.2
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -8,8 +8,9 @@ v2.1: Acesso a secrets à prova de crash.
 v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
 v2.3: Retry automático com backoff para erros transitórios (503/429/5xx).
 v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL).
-v3.1: Anti-duplicata de cartas nos menus + Mesa Visual/PDF com as IMAGENS REAIS
-      das cartas vindas de assets/cartas/ (cigano/ e taro/).
+v3.1: Anti-duplicata de cartas nos menus + Mesa Visual/PDF com arte real (assets/cartas/).
+v3.2: Casador inteligente de nomes de arquivo (convenções 00_louco, paus_01, ouro_rei,
+      01_mensageiro...) com sinônimos, naipes e arcanos com barra ("/").
 """
 
 import os
@@ -470,24 +471,91 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
 # ==========================================
 # IMAGENS REAIS DAS CARTAS (assets/cartas/)
 # ==========================================
+_ARTIGOS = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "e"}
+_NUM_ROMANO = re.compile(r"^(?:\d+\.|[ivxlc]+\.?)$", re.IGNORECASE)
+
+# Sinônimos entre o rótulo do app e o nome do arquivo (sem acentos, minúsculas)
+_SINONIMOS_CARTAS = {
+    "cavaleiro": ["mensageiro"],
+    "cao": ["cachorro"],
+    "carta": ["cartas"],
+    "enamorados": ["amantes"],
+    "eremita": ["heremita"],
+    "julgamento": ["jugamento"],
+}
+
+# O app chama "Ouros"; seus arquivos usam "ouro"
+_SINONIMOS_NAIPE = {"ouros": "ouro"}
+
+# Códigos de valor para arcanos menores (Ás de Paus -> paus01 etc.)
+_RANK = {
+    "as": "01", "1": "01", "2": "02", "3": "03", "4": "04", "5": "05",
+    "6": "06", "7": "07", "8": "08", "9": "09", "10": "10",
+    "valete": "valete", "cavaleiro": "cavaleiro",
+    "rainha": "rainha", "rei": "rei",
+}
+
 def _normalizar_texto(texto):
-    """Remove acentos, pontuação e espaços para casar nome de carta com arquivo."""
+    """Remove acentos, pontuação e espaços para comparar nomes."""
     txt = unicodedata.normalize("NFD", str(texto))
     txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     txt = txt.lower()
     return re.sub(r"[^a-z0-9]+", "", txt)
 
+def _tokens(stem):
+    """Quebra o nome do arquivo em tokens normalizados."""
+    partes = re.split(r"[^0-9A-Za-zÀ-ÖØ-öø-ÿ]+", str(stem))
+    return [ _normalizar_texto(p) for p in partes if _normalizar_texto(p) ]
+
+def _chaves_para_arquivo(stem):
+    """Gera as chaves de busca que um arquivo de imagem atende."""
+    toks = _tokens(stem)
+    if not toks:
+        return []
+    chaves = ["".join(toks)]
+    sem_num_art = [t for t in toks if not t.isdigit() and t not in _ARTIGOS]
+    if sem_num_art and sem_num_art != toks:
+        chaves.append("".join(sem_num_art))
+    return chaves
+
+def _chaves_para_carta(nome):
+    """Gera as chaves de busca que um rótulo de carta produz, em prioridade."""
+    chaves = []
+    for segmento in str(nome).split("/"):
+        tokens = [t for t in segmento.split() if t]
+        if not tokens:
+            continue
+        if _NUM_ROMANO.match(tokens[0]):
+            tokens = tokens[1:]
+        # Arcano menor: "<valor> de <naipe>" ou "<figura> de <naipe>"
+        if len(tokens) == 3 and tokens[1].lower() == "de":
+            rank = _normalizar_texto(tokens[0])
+            naipe = _normalizar_texto(tokens[2])
+            naipe = _SINONIMOS_NAIPE.get(naipe, naipe)
+            chaves.append(f"{naipe}{_RANK.get(rank, rank)}")
+        nucleos = [
+            _normalizar_texto(t) for t in tokens
+            if _normalizar_texto(t) and _normalizar_texto(t) not in _ARTIGOS
+        ]
+        core = "".join(nucleos)
+        if core:
+            chaves.append(core)
+            chaves.extend(_SINONIMOS_CARTAS.get(core, []))
+            for nuc in nucleos:
+                chaves.extend(_SINONIMOS_CARTAS.get(nuc, []))
+    return chaves
+
 @st.cache_data(show_spinner=False)
 def _mapa_imagens_cartas():
-    """Varre assets/cartas/ e indexa imagens por nome normalizado + pasta."""
+    """Varre assets/cartas/ e indexa imagens por todas as chaves possíveis."""
     indice = {}
     if not PASTA_CARTAS.exists():
         return indice
     for arquivo in sorted(PASTA_CARTAS.rglob("*")):
         if arquivo.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
-            chave = _normalizar_texto(arquivo.stem)
             pasta = _normalizar_texto(arquivo.parent.name)
-            indice.setdefault(chave, []).append((str(arquivo), pasta))
+            for chave in _chaves_para_arquivo(arquivo.stem):
+                indice.setdefault(chave, []).append((str(arquivo), pasta))
     return indice
 
 def obter_imagem_carta(nome_carta, oraculo):
@@ -497,19 +565,20 @@ def obter_imagem_carta(nome_carta, oraculo):
     indice = _mapa_imagens_cartas()
     if not indice:
         return None
-    chave = _normalizar_texto(nome_carta)
-    candidatos = indice.get(chave)
-    if not candidatos:
-        return None
-    if oraculo.startswith("Baralho"):
-        preferidos = [c for c in candidatos if ("cigano" in c[1] or "lenormand" in c[1])]
-    else:
-        preferidos = [c for c in candidatos if ("taro" in c[1] or "tarot" in c[1])]
-    caminho = (preferidos or candidatos)[0][0]
-    try:
-        return Image.open(caminho).convert("RGB")
-    except Exception:
-        return None
+    for chave in _chaves_para_carta(nome_carta):
+        candidatos = indice.get(chave)
+        if not candidatos:
+            continue
+        if oraculo.startswith("Baralho"):
+            preferidos = [c for c in candidatos if ("cigano" in c[1] or "lenormand" in c[1])]
+        else:
+            preferidos = [c for c in candidatos if ("taro" in c[1] or "tarot" in c[1])]
+        caminho = (preferidos or candidatos)[0][0]
+        try:
+            return Image.open(caminho).convert("RGB")
+        except Exception:
+            continue
+    return None
 
 # ==========================================
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
@@ -693,7 +762,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍ Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -1068,7 +1137,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v3.1 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v3.2 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
