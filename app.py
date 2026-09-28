@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v3.2
+Auxiliar de Cartomancia & Oráculos v3.4
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -9,8 +9,10 @@ v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
 v2.3: Retry automático com backoff para erros transitórios (503/429/5xx).
 v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL).
 v3.1: Anti-duplicata de cartas nos menus + Mesa Visual/PDF com arte real (assets/cartas/).
-v3.2: Casador inteligente de nomes de arquivo (convenções 00_louco, paus_01, ouro_rei,
-      01_mensageiro...) com sinônimos, naipes e arcanos com barra ("/").
+v3.2: Casador inteligente de nomes de arquivo (taro e cigano).
+v3.3: Oráculo Sibilla Italiana no sistema.
+v3.4: Sibilla com 54 cartas via sibilla.json (fichas técnicas no prompt) +
+      casador de imagens numéricas (01..54) + proteção anti-mistura de baralhos.
 """
 
 import os
@@ -51,31 +53,19 @@ except ImportError:
 # CONFIGURAÇÕES GLOBAIS
 # ==========================================
 DB_PATH = "leituras.db"
-
-# Modelo ativo do Gemini.
-# Para trocar de modelo no futuro, altere APENAS esta linha.
 MODELO_GEMINI = "gemini-3.6-flash"
-
-# Modelo reserva (opcional): usado UMA única vez se todas as tentativas do
-# modelo principal falharem. Deixe "" para desativar.
 MODELO_RESERVA = ""
-
-# Resiliência da chamada à API
 MAX_TENTATIVAS = 4
 ESPERA_BASE_SEGUNDOS = 4
-
 PLACEHOLDER_CARTA = "-- Selecione uma carta --"
-
-# Pasta com as imagens reais das cartas (opcional; se não existir, a mesa
-# virtual desenha cartas estilizadas com o nome).
 PASTA_CARTAS = Path(__file__).parent / "assets" / "cartas"
+ARQ_SIBILLA = Path(__file__).parent / "sibilla.json"
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
 # ==========================================
 def obter_chave_api():
-    """Obtém a chave de API dos secrets do Streamlit ou de variável de ambiente.
-    Nunca crasha mesmo que nenhum secrets.toml exista no ambiente."""
+    """Obtém a chave de API dos secrets do Streamlit ou de variável de ambiente."""
     chave = ""
     try:
         chave = st.secrets.get("GEMINI_API_KEY", "") or ""
@@ -89,7 +79,7 @@ def obter_chave_api():
 # RESILIÊNCIA - RETRY COM BACKOFF
 # ==========================================
 def eh_erroro_transitorio(exc):
-    """Detecta erros de capacidade/disponibilidade (503, 429, 5xx, overload)."""
+    """Detecta erros de capacidade/disponibilidade."""
     txt = str(exc).upper()
     marcadores = (
         "503", "429", "500", "502", "504",
@@ -99,8 +89,7 @@ def eh_erroro_transitorio(exc):
     return any(m in txt for m in marcadores)
 
 def chamar_gemini(client, contents, config, ao_tentar=None):
-    """Chama o Gemini com novas tentativas automáticas em erros transitórios.
-    Se tudo falhar e houver MODELO_RESERVA configurado, tenta-o uma única vez."""
+    """Chama o Gemini com novas tentativas automáticas."""
     ultima_exc = None
     for tentativa in range(1, MAX_TENTATIVAS + 1):
         if ao_tentar:
@@ -133,7 +122,7 @@ def chamar_gemini(client, contents, config, ao_tentar=None):
 # BANCO DE DADOS - HISTÓRICO DE LEITURAS
 # ==========================================
 def init_db():
-    """Inicializa o banco SQLite e cria a tabela de leituras."""
+    """Inicializa o banco SQLite."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
@@ -212,6 +201,39 @@ def delete_reading(reading_id):
 init_db()
 
 # ==========================================
+# ORÁCULO SIBILLA - CARGA DO sibilla.json
+# ==========================================
+def _carregar_sibilla():
+    """Carrega as fichas técnicas das 54 cartas a partir de sibilla.json."""
+    try:
+        with open(ARQ_SIBILLA, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        return {int(item["id"]): item for item in dados}
+    except Exception:
+        return {}
+
+def _rotulo_sibilla(d):
+    """Monta o rótulo exibido no menu: '01. DESPRAZER (Il Dispiacere) — A♠'."""
+    base = f"{int(d['id']):02d}. {d.get('titulo', '')}"
+    carta = str(d.get("carta", ""))
+    if carta and not carta.isdigit():
+        base += f" — {carta}"
+    return base
+
+SIBILLA_DADOS = _carregar_sibilla()
+CARTAS_SIBILLA = [PLACEHOLDER_CARTA] + [
+    _rotulo_sibilla(d) for _, d in sorted(SIBILLA_DADOS.items())
+]
+
+def _ficha_sibilla(rotulo_carta):
+    """Retorna a ficha técnica (dict) da carta Sibilla pelo rótulo do menu."""
+    try:
+        cid = int(str(rotulo_carta).split(".")[0])
+    except Exception:
+        return None
+    return SIBILLA_DADOS.get(cid)
+
+# ==========================================
 # BANCO DE DADOS DE CARTAS E POSIÇÕES
 # ==========================================
 CARTAS_CIGANO = [
@@ -229,26 +251,21 @@ CARTAS_CIGANO = [
 
 CARTAS_TARO = [
     PLACEHOLDER_CARTA,
-    # Arcanos Maiores
     "0. O Louco", "I. O Mago", "II. A Sacerdotisa", "III. A Imperatriz",
     "IV. O Imperador", "V. O Papa / O Hierofante", "VI. Os Enamorados",
     "VII. O Carro", "VIII. A Força", "IX. O Eremita", "X. A Roda da Fortuna",
     "XI. A Justiça", "XII. O Enforcado", "XIII. A Morte", "XIV. A Temperança",
     "XV. O Diabo", "XVI. A Torre", "XVII. A Estrela", "XVIII. A Lua",
     "XIX. O Sol", "XX. O Julgamento", "XXI. O Mundo",
-    # Paus
     "Ás de Paus", "2 de Paus", "3 de Paus", "4 de Paus", "5 de Paus",
     "6 de Paus", "7 de Paus", "8 de Paus", "9 de Paus", "10 de Paus",
     "Valete de Paus", "Cavaleiro de Paus", "Rainha de Paus", "Rei de Paus",
-    # Copas
     "Ás de Copas", "2 de Copas", "3 de Copas", "4 de Copas", "5 de Copas",
     "6 de Copas", "7 de Copas", "8 de Copas", "9 de Copas", "10 de Copas",
     "Valete de Copas", "Cavaleiro de Copas", "Rainha de Copas", "Rei de Copas",
-    # Espadas
     "Ás de Espadas", "2 de Espadas", "3 de Espadas", "4 de Espadas", "5 de Espadas",
     "6 de Espadas", "7 de Espadas", "8 de Espadas", "9 de Espadas", "10 de Espadas",
     "Valete de Espadas", "Cavaleiro de Espadas", "Rainha de Espadas", "Rei de Espadas",
-    # Ouros
     "Ás de Ouros", "2 de Ouros", "3 de Ouros", "4 de Ouros", "5 de Ouros",
     "6 de Ouros", "7 de Ouros", "8 de Ouros", "9 de Ouros", "10 de Ouros",
     "Valete de Ouros", "Cavaleiro de Ouros", "Rainha de Ouros", "Rei de Ouros"
@@ -293,6 +310,29 @@ ESTRUTURA_POSICOES = {
         "Posição 5 (Linha 3 - Desafio / Bloqueio 1)",
         "Posição 6 (Linha 3 - Desafio / Bloqueio 2)",
         "Posição 7 (Base - Síntese e Ápice)"
+    ],
+    "Ferradura (7 cartas)": [
+        "Posição 1 (Passado Recente)",
+        "Posição 2 (Presente / Situação Atual)",
+        "Posição 3 (Futuro Próximo)",
+        "Posição 4 (Conselho / Orientação)",
+        "Posição 5 (Influências Externas)",
+        "Posição 6 (Esperanças e Medos)",
+        "Posição 7 (Desfecho / Resultado Final)"
+    ],
+    "Grande Jogo (12 cartas)": [
+        "Posição 1 (Passado Distante)",
+        "Posição 2 (Passado Recente)",
+        "Posição 3 (Presente Imediato)",
+        "Posição 4 (Desafio Atual)",
+        "Posição 5 (Oculto / Subconsciente)",
+        "Posição 6 (Futuro Próximo)",
+        "Posição 7 (Sua Atitude)",
+        "Posição 8 (Atitude dos Outros)",
+        "Posição 9 (Esperanças e Medos)",
+        "Posição 10 (Influências Externas)",
+        "Posição 11 (Conselho do Oráculo)",
+        "Posição 12 (Desfecho Final)"
     ]
 }
 
@@ -304,8 +344,9 @@ DIRETRIZES ÉTICAS FUNDAMENTAIS (VÁLIDAS PARA TODOS OS TONS):
 1. POSTURA NÃO-FATALISTA: O oráculo revela tendências energéticas, NUNCA destino imutável.
 2. SINTAXE LENORMAND: Leitura em pares/tríades (Substantivo + Adjetivo / Tema + Qualificador).
 3. TARÔ ESTRUTURADO: Arcanos Maiores = lições arquetípicas; Menores = cotidiano/prático.
-4. REGRA DE OURO (MAGIA/DEMANDAS): PROIBIDO apontar magia/trabalho feito com apenas 1 carta de sombra. Exige 2-3 cartas de sombra alinhadas voltadas ao campo sutil.
-5. LIVRE-ARBÍTRIO: Sempre preserve a autonomia do consulente.
+4. SIBILLA ITALIANA (54 cartas): Cada carta narra uma cena cotidiana e possui POLARIDADE (Positiva/Negativa/Neutra) e correspondência com o baralho comum (ex.: A♠). Use as FICHAS TÉCNICAS fornecidas (essência, significados favorável/desafiador e combinações clássicas) como alicerce da interpretação, cruzando-as com as posições da tiragem. As cartas 53 (Nemico) e 54 (Nemica) são cartas-extra de hostilidade declarada.
+5. REGRA DE OURO (MAGIA/DEMANDAS): PROIBIDO apontar magia/trabalho feito com apenas 1 carta de sombra. Exige 2-3 cartas de sombra alinhadas voltadas ao campo sutil.
+6. LIVRE-ARBÍTRIO: Sempre preserve a autonomia do consulente.
 
 ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
 ### 🌟 1. Panorama Geral da Tiragem
@@ -371,7 +412,7 @@ def sanitizar_texto_pdf(texto):
     return texto
 
 def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
-    """Gera um PDF formatado da leitura oracular, opcionalmente com a mesa visual."""
+    """Gera um PDF formatado da leitura oracular."""
     pdf = FPDF()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -430,7 +471,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
             pdf.cell(0, 6, f"  - {pos}: {carta}", ln=True)
         pdf.ln(5)
 
-    # Página exclusiva com a Mesa Visual (com arte real, se houver assets)
     if imagem_mesa is not None:
         pdf.add_page()
         pdf.set_font("Helvetica", "B", 14)
@@ -461,7 +501,6 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
     pdf.cell(0, 5, "Documento gerado pelo sistema 'Auxiliar de Cartomancia & Oraculos'", ln=True, align="C")
     pdf.cell(0, 5, "Leitura baseada em tendencias energeticas - Respeite seu livre-arbitrio.", ln=True, align="C")
 
-    # fpdf2 retorna bytearray; o Streamlit exige bytes.
     try:
         saida = pdf.output(dest="S")
     except TypeError:
@@ -471,10 +510,10 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
 # ==========================================
 # IMAGENS REAIS DAS CARTAS (assets/cartas/)
 # ==========================================
-_ARTIGOS = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "e"}
+_ARTIGOS = {"o", "a", "os", "as", "de", "do", "da", "dos", "das", "e", "la", "il", "le", "lo"}
 _NUM_ROMANO = re.compile(r"^(?:\d+\.|[ivxlc]+\.?)$", re.IGNORECASE)
+_CHAVE_NUMERO = re.compile(r"^(\d+)\.$")
 
-# Sinônimos entre o rótulo do app e o nome do arquivo (sem acentos, minúsculas)
 _SINONIMOS_CARTAS = {
     "cavaleiro": ["mensageiro"],
     "cao": ["cachorro"],
@@ -484,10 +523,8 @@ _SINONIMOS_CARTAS = {
     "julgamento": ["jugamento"],
 }
 
-# O app chama "Ouros"; seus arquivos usam "ouro"
 _SINONIMOS_NAIPE = {"ouros": "ouro"}
 
-# Códigos de valor para arcanos menores (Ás de Paus -> paus01 etc.)
 _RANK = {
     "as": "01", "1": "01", "2": "02", "3": "03", "4": "04", "5": "05",
     "6": "06", "7": "07", "8": "08", "9": "09", "10": "10",
@@ -495,8 +532,10 @@ _RANK = {
     "rainha": "rainha", "rei": "rei",
 }
 
+_PALAVRAS_BARALHO = ("cigano", "lenormand", "taro", "tarot", "sibilla", "sibila")
+
 def _normalizar_texto(texto):
-    """Remove acentos, pontuação e espaços para comparar nomes."""
+    """Remove acentos, pontuação e espaços."""
     txt = unicodedata.normalize("NFD", str(texto))
     txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     txt = txt.lower()
@@ -525,14 +564,34 @@ def _chaves_para_carta(nome):
         tokens = [t for t in segmento.split() if t]
         if not tokens:
             continue
-        if _NUM_ROMANO.match(tokens[0]):
+
+        # 1) Numeração inicial ("01.", "53.", "0.") -> chave numérica pura
+        m = _CHAVE_NUMERO.match(tokens[0])
+        if m:
+            dig = m.group(1)
+            chaves.append(dig.zfill(2))
+            chaves.append(str(int(dig)))
             tokens = tokens[1:]
-        # Arcano menor: "<valor> de <naipe>" ou "<figura> de <naipe>"
+        elif _NUM_ROMANO.match(tokens[0]):
+            tokens = tokens[1:]
+
+        # 2) Nome entre parênteses (italiano/original) vira chave própria
+        if "(" in segmento and ")" in segmento:
+            dentro = segmento.split("(", 1)[1].rsplit(")", 1)[0]
+            chave_dentro = _normalizar_texto(dentro)
+            if chave_dentro:
+                chaves.append(chave_dentro)
+            segmento = segmento.split("(", 1)[0]
+            tokens = [t for t in segmento.split() if t]
+
+        # 3) Arcano menor: "<valor> de <naipe>"
         if len(tokens) == 3 and tokens[1].lower() == "de":
             rank = _normalizar_texto(tokens[0])
             naipe = _normalizar_texto(tokens[2])
             naipe = _SINONIMOS_NAIPE.get(naipe, naipe)
             chaves.append(f"{naipe}{_RANK.get(rank, rank)}")
+
+        # 4) Núcleos sem artigos (palavra cheia e composta)
         nucleos = [
             _normalizar_texto(t) for t in tokens
             if _normalizar_texto(t) and _normalizar_texto(t) not in _ARTIGOS
@@ -541,9 +600,18 @@ def _chaves_para_carta(nome):
         if core:
             chaves.append(core)
             chaves.extend(_SINONIMOS_CARTAS.get(core, []))
-            for nuc in nucleos:
-                chaves.extend(_SINONIMOS_CARTAS.get(nuc, []))
-    return chaves
+        for nuc in nucleos:
+            chaves.append(nuc)
+            chaves.extend(_SINONIMOS_CARTAS.get(nuc, []))
+
+    # Remove duplicados preservando a prioridade
+    vistas = set()
+    finais = []
+    for c in chaves:
+        if c and c not in vistas:
+            vistas.add(c)
+            finais.append(c)
+    return finais
 
 @st.cache_data(show_spinner=False)
 def _mapa_imagens_cartas():
@@ -558,8 +626,12 @@ def _mapa_imagens_cartas():
                 indice.setdefault(chave, []).append((str(arquivo), pasta))
     return indice
 
+def _pasta_neutra(nome_pasta):
+    """Pasta sem indicação de baralho (ex.: 'cartas') serve a qualquer oráculo."""
+    return not any(palavra in nome_pasta for palavra in _PALAVRAS_BARALHO)
+
 def obter_imagem_carta(nome_carta, oraculo):
-    """Retorna a imagem PIL da carta, se existir em assets/cartas/."""
+    """Retorna a imagem PIL da carta, priorizando a pasta do baralho certo."""
     if not nome_carta or nome_carta == PLACEHOLDER_CARTA:
         return None
     indice = _mapa_imagens_cartas()
@@ -570,12 +642,17 @@ def obter_imagem_carta(nome_carta, oraculo):
         if not candidatos:
             continue
         if oraculo.startswith("Baralho"):
-            preferidos = [c for c in candidatos if ("cigano" in c[1] or "lenormand" in c[1])]
+            meus = [c for c in candidatos if ("cigano" in c[1] or "lenormand" in c[1])]
+        elif oraculo.startswith("Sibilla"):
+            meus = [c for c in candidatos if ("sibilla" in c[1] or "sibila" in c[1])]
         else:
-            preferidos = [c for c in candidatos if ("taro" in c[1] or "tarot" in c[1])]
-        caminho = (preferidos or candidatos)[0][0]
+            meus = [c for c in candidatos if ("taro" in c[1] or "tarot" in c[1])]
+        neutros = [c for c in candidatos if _pasta_neutra(c[1])]
+        escolha = meus or neutros
+        if not escolha:
+            continue  # nunca usa imagem de outro baralho
         try:
-            return Image.open(caminho).convert("RGB")
+            return Image.open(escolha[0][0]).convert("RGB")
         except Exception:
             continue
     return None
@@ -584,14 +661,14 @@ def obter_imagem_carta(nome_carta, oraculo):
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
 # ==========================================
 def _fonte(tamanho):
-    """Retorna a fonte padrão do Pillow no tamanho pedido, com fallback seguro."""
+    """Retorna a fonte padrão do Pillow."""
     try:
         return ImageFont.load_default(size=tamanho)
     except Exception:
         return ImageFont.load_default()
 
 def _layout_mesa(metodo, n_posicoes):
-    """Define os centros (x, y) e o tamanho (w, h) das cartas conforme o método."""
+    """Define os centros (x, y) e o tamanho (w, h) das cartas."""
     if metodo == "Linha de 3 Cartas" and n_posicoes == 3:
         return [(500, 540), (800, 540), (1100, 540)], (240, 380)
     if metodo == "Linha de 5 Cartas" and n_posicoes == 5:
@@ -611,7 +688,18 @@ def _layout_mesa(metodo, n_posicoes):
             (660, 680), (940, 680),
             (800, 890),
         ], (170, 200)
-    # Layout genérico (Livre / Outros)
+    if metodo.startswith("Ferradura") and n_posicoes == 7:
+        return [
+            (400, 700), (300, 500), (400, 300), (600, 200),
+            (800, 300), (900, 500), (800, 700)
+        ], (160, 240)
+    if metodo.startswith("Grande Jogo") and n_posicoes == 12:
+        centros = []
+        for y in (300, 500, 700):
+            for x in (400, 600, 800, 1000):
+                centros.append((x, y))
+        return centros, (140, 180)
+
     cols = 5 if n_posicoes <= 10 else 6
     rows = math.ceil(n_posicoes / cols)
     cell_h = 860 // rows
@@ -631,7 +719,6 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     img = Image.new("RGB", (largura, altura), (28, 58, 48))
     draw = ImageDraw.Draw(img)
 
-    # Moldura dourada dupla
     draw.rectangle([18, 18, largura - 18, altura - 18], outline=(196, 168, 90), width=4)
     draw.rectangle([30, 30, largura - 30, altura - 30], outline=(196, 168, 90), width=2)
 
@@ -648,13 +735,11 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
         x0, y0 = cx - cw // 2, cy - ch // 2
         x1, y1 = cx + cw // 2, cy + ch // 2
 
-        # Rótulo da posição (sempre visível)
         draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
 
         arte = obter_imagem_carta(carta, oraculo) if carta else None
 
         if arte is not None:
-            # Sombra + arte real redimensionada + moldura dourada
             draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
             ratio = min(cw / arte.width, ch / arte.height)
             nw = max(1, int(arte.width * ratio))
@@ -664,7 +749,6 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
             img.paste(arte_rs, (px, py))
             draw.rounded_rectangle([x0, y0, x1, y1], radius=16, outline=(196, 168, 90), width=3)
         else:
-            # Fallback: carta estilizada desenhada com o nome
             draw.rounded_rectangle([x0 + 6, y0 + 8, x1 + 6, y1 + 8], radius=16, fill=(15, 30, 25))
             draw.rounded_rectangle([x0, y0, x1, y1], radius=16, fill=(246, 240, 224), outline=(120, 90, 40), width=3)
             draw.rounded_rectangle([x0 + 8, y0 + 8, x1 - 8, y1 - 8], radius=10, outline=(196, 168, 90), width=2)
@@ -733,9 +817,14 @@ with st.sidebar:
     with st.expander("🃏 Oráculo e Método", expanded=True):
         oracle_choice = st.selectbox(
             "Sistema Simbólico",
-            options=["Baralho Cigano (Lenormand)", "Tarô Tradicional"],
+            options=[
+                "Baralho Cigano (Lenormand)",
+                "Tarô Tradicional",
+                "Sibilla Italiana (54 cartas)",
+            ],
             index=0,
         )
+
         spread_choice = st.selectbox(
             "Disposição da Tiragem",
             options=[
@@ -744,13 +833,15 @@ with st.sidebar:
                 "Bloco de 9 Cartas (3x3)",
                 "Cruz Simples (5 cartas)",
                 "Pirâmide Invertida (7 cartas)",
+                "Ferradura (7 cartas)",
+                "Grande Jogo (12 cartas)",
                 "Livre / Outro",
             ],
             index=0,
         )
         if spread_choice == "Livre / Outro":
             num_free_cards = st.number_input(
-                "Quantidade de Cartas:", min_value=1, max_value=36, value=3, step=1
+                "Quantidade de Cartas:", min_value=1, max_value=54, value=3, step=1
             )
         else:
             num_free_cards = 0
@@ -762,7 +853,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍ Dados do Consulente", expanded=True):
+    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -800,6 +891,7 @@ with tab_nova:
 
             - **Sintaxe do Lenormand:** Cartas lidas em duplas/tríades (Substantivo + Adjetivo).
             - **Tarô Estruturado:** Distinção entre Arcanos Maiores e Menores.
+            - **Sibilla Italiana:** 54 cartas com polaridade e fichas técnicas; cenas cotidianas lidas como narrativa.
             - **Regra Estrita para Magia:** NUNCA afirma demandas por uma carta isolada. Exige 2-3 cartas de sombra pesada alinhadas.
             - **Livre-Arbítrio Soberano:** O oráculo orienta, preservando a autonomia do consulente.
             """
@@ -837,14 +929,25 @@ with tab_nova:
 
     with col2:
         st.markdown("**2. Cartas de Cada Posição (manual ou sorteio) ***")
-        opcoes_cartas = CARTAS_CIGANO if oracle_choice == "Baralho Cigano (Lenormand)" else CARTAS_TARO
+
+        if oracle_choice.startswith("Sibilla") and not SIBILLA_DADOS:
+            st.warning(
+                "Arquivo `sibilla.json` não encontrado na pasta do projeto. "
+                "Salve o JSON das 54 fichas como `sibilla.json` ao lado do `app.py`."
+            )
+
+        if oracle_choice.startswith("Baralho"):
+            opcoes_cartas = CARTAS_CIGANO
+        elif oracle_choice.startswith("Sibilla"):
+            opcoes_cartas = CARTAS_SIBILLA
+        else:
+            opcoes_cartas = CARTAS_TARO
 
         if spread_choice in ESTRUTURA_POSICOES:
             rotulos_posicoes = ESTRUTURA_POSICOES[spread_choice]
         else:
             rotulos_posicoes = [f"Carta {i+1}" for i in range(int(num_free_cards))]
 
-        # ---- Consumo dos comandos de sorteio/limpeza (ANTES dos selectboxes) ----
         if st.session_state.get("sortear_agora"):
             st.session_state["sortear_agora"] = False
             pool = [c for c in opcoes_cartas if c != PLACEHOLDER_CARTA]
@@ -859,7 +962,6 @@ with tab_nova:
                 st.session_state[f"card_{rotulo}"] = PLACEHOLDER_CARTA
             st.session_state["mesa_img"] = None
 
-        # ---- Selectboxes COM ANTI-DUPLICATA ----
         cartas_selecionadas = {}
         with st.container(height=380, border=True):
             for rotulo in rotulos_posicoes:
@@ -867,16 +969,13 @@ with tab_nova:
                 valor_atual = st.session_state.get(key, PLACEHOLDER_CARTA)
                 usadas_antes = list(cartas_selecionadas.values())
 
-                # Conflito (mesma carta em posição anterior): a posterior é limpa
                 if valor_atual in usadas_antes:
                     valor_atual = PLACEHOLDER_CARTA
                     st.session_state[key] = valor_atual
 
-                # Opções: apenas cartas ainda não usadas nesta tiragem
                 pool = [c for c in opcoes_cartas if c != PLACEHOLDER_CARTA and c not in usadas_antes]
                 opcoes = [PLACEHOLDER_CARTA] + pool
 
-                # Baralho trocado / carta indisponível: reseta com segurança
                 if valor_atual not in opcoes:
                     valor_atual = PLACEHOLDER_CARTA
                     st.session_state[key] = valor_atual
@@ -893,7 +992,6 @@ with tab_nova:
 
         st.caption("🔒 Anti-duplicata ativo: cada carta só pode aparecer uma vez na tiragem.")
 
-        # ---- Botões de sorteio, limpeza e mesa visual ----
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
             if st.button(
@@ -934,9 +1032,6 @@ with tab_nova:
         use_container_width=True
     )
 
-    # ==========================================
-    # PROCESSAMENTO E CHAMADA DA API GEMINI
-    # ==========================================
     if analyze_button:
         active_api_key = obter_chave_api()
 
@@ -965,6 +1060,30 @@ with tab_nova:
                     [f"- {pos}: {carta}" for pos, carta in cartas_selecionadas.items()]
                 )
 
+                # Fichas técnicas Sibilla enriquecem o prompt
+                bloco_sibilla = ""
+                if oracle_choice.startswith("Sibilla") and SIBILLA_DADOS:
+                    linhas_ficha = []
+                    for pos, carta in cartas_selecionadas.items():
+                        d = _ficha_sibilla(carta)
+                        if not d:
+                            continue
+                        linhas_ficha.append(
+                            f"- {pos}: {d.get('titulo','')} ({d.get('carta','')}) | "
+                            f"Polaridade: {d.get('polaridade','')}\n"
+                            f"  Essência: {d.get('legenda_curta','')}\n"
+                            f"  Significado geral: {d.get('significado_geral','')}\n"
+                            f"  Leitura favorável: {d.get('posicao_correta','')}\n"
+                            f"  Leitura desafiadora: {d.get('posicao_invertida','')}\n"
+                            f"  Combinações clássicas: {d.get('combinacoes','')}"
+                        )
+                    if linhas_ficha:
+                        bloco_sibilla = (
+                            "\n\nFICHAS TÉCNICAS DAS CARTAS SIBILLA SORTEADAS "
+                            "(use-as como alicerce da interpretação):\n"
+                            + "\n".join(linhas_ficha)
+                        )
+
                 user_prompt_text = f"""
 Por favor, realize a interpretação aprofundada da seguinte tiragem oracular:
 
@@ -977,6 +1096,7 @@ Por favor, realize a interpretação aprofundada da seguinte tiragem oracular:
 
 - **Cartas Sorteadas e Posições**:
 {texto_cartas_formatado if texto_cartas_formatado else "(Analise as cartas a partir da foto da mesa enviada em anexo)"}
+{bloco_sibilla}
 
 Aplique rigorosamente todas as regras oraculares da system instruction.
 """
@@ -1043,9 +1163,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                 else:
                     st.error(f"❌ **Erro durante a consulta:** `{str(e)}`")
 
-    # ==========================================
-    # EXIBIÇÃO DA INTERPRETAÇÃO + EXPORTAÇÕES
-    # ==========================================
     if st.session_state.interpretacao_atual and st.session_state.dados_leitura_atual:
         dados = st.session_state.dados_leitura_atual
         st.markdown("---")
@@ -1137,7 +1254,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v3.2 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v3.4 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
