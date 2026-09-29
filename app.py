@@ -1,19 +1,23 @@
 """
-Auxiliar de Cartomancia & Oráculos v4.0
+Auxiliar de Cartomancia & Oráculos v4.1
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
 Recursos:
 - 3 oráculos: Baralho Cigano (36), Tarô Tradicional (78), Sibilla Italiana (54)
 - Histórico SQLite, Exportação PDF/TXT, Modo Profissional, Múltiplos Tons de Leitura
-- Anti-duplicata, Sorteio Digital, Mesa Visual com arte real
+- Anti-duplicata, Sorteio Digital, Mesa Visual com arte real e medalhões
 - Retry automático com backoff para erros transitórios (503/429/5xx)
 - Fichas técnicas do Sibilla enriquecem o prompt do Gemini
-v4.0:
-- ⏳ Análise Comparativa Temporal (reavaliar leituras antigas)
-- 🖼️ Medalhões decorativos na Mesa Visual (assets/medalhoes/)
-- 📊 Dashboard de Estatísticas (aba própria)
-- 📖 Aba de Manuais (lê os HTMLs da raiz: Sibilla, Tarô e Cigano)
+- Abas: Nova Leitura, Histórico (com Comparativa Temporal), Estatísticas, Manuais
+
+v4.1:
+- Mesa Visual AUTOMÁTICA no PDF (mesmo sem clique, inclusive p/ leituras do Histórico)
+- Fix do crash de PDF: linha de cartas agora sanitizada (travessão "—" e naipes ♠♥♣♦)
+- Rodapé do PDF com paginação (Página X/Y)
+- "Clima da tiragem" (polaridades Sibilla) impresso no relatório
+- Nomes de arquivo de download sem acentos/espaços (slug)
+- Aviso de salvamento automático na Análise Comparativa Temporal
 """
 
 import os
@@ -85,6 +89,20 @@ def obter_chave_api():
     if not chave:
         chave = os.environ.get("GEMINI_API_KEY", "") or ""
     return chave.strip()
+
+# ==========================================
+# UTILITÁRIOS DE TEXTO
+# ==========================================
+def _slug(texto):
+    """Gera nome de arquivo seguro (sem acentos, espaços ou símbolos)."""
+    txt = unicodedata.normalize("NFD", str(texto or ""))
+    txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
+    txt = re.sub(r"[^A-Za-z0-9]+", "_", txt).strip("_").lower()
+    return txt or "pessoal"
+
+def _carimbo(data_hora):
+    """Converte 'dd/mm/AAAA HH:MM' em carimbo compacto para nomes de arquivo."""
+    return re.sub(r"[^0-9]", "", str(data_hora))[:12]
 
 # ==========================================
 # RESILIÊNCIA - RETRY COM BACKOFF
@@ -430,29 +448,47 @@ ESTRUTURA DA RESPOSTA:
 # FUNÇÕES AUXILIARES - PDF
 # ==========================================
 def sanitizar_texto_pdf(texto):
-    """Remove/substitui caracteres não suportados pela fonte Helvetica (latin-1)."""
+    """Converte qualquer texto para o conjunto latin-1 suportado pela Helvetica."""
     if not texto:
         return ""
 
     replacements = {
+        # Títulos estruturais e estrelas
         '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
         '✨': '*', '⭐': '*', '💫': '*', '🌙': '*', '☀️': '*',
+        # Travessões e hífens especiais (CAUSA DO CRASH ANTERIOR)
         '—': '-', '–': '-', '―': '-', '−': '-',
         '‐': '-', '‑': '-', '‒': '-', '⁃': '-',
+        # Naipes de baralho por extenso
+        '♠': ' (Espadas)', '♥': ' (Copas)',
+        '♣': ' (Paus)', '♦': ' (Ouros)',
+        # Setas
         '→': '->', '←': '<-', '↔': '<->', '⇒': '=>',
         '⇐': '<=', '⇔': '<=>', '➔': '->', '➜': '->',
+        # Bullets e marcadores
         '•': '*', '✦': '*', '❖': '*', '◦': '*',
         '▪': '*', '▫': '*', '○': '*', '●': '*',
+        # Emojis de status
         '⚠️': '[!]', '❌': '[X]', '✅': '[OK]',
-        '❓': '[?]', '❗': '[!]', '⭕': '[O]',
+        '❓': '[?]', '❗': '[!]', '⭕': '[O]', '✖': '[X]',
+        # Emojis de objeto e seção
         '🔮': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
         '💾': '[SALVAR]', '📄': '[PG]', '📷': '[CAM]',
         '🎴': '[CARTA]', '🃏': '[BARALHO]', '🎲': '[DADO]',
-        '': '[TEMPO]', '🔄': '[CICLO]', '🌱': '[GERME]', '🧭': '[BUSSOLA]',
-        '"': '"', '"': '"', ''': "'", ''': "'",
+        '⏳': '[TEMPO]', '🔄': '[CICLO]', '🌱': '[GERME]',
+        '🧭': '[BUSSOLA]', '📊': '[GRAFICO]', '📈': '[GRAFICO]',
+        '📚': '[LIVROS]', '📖': '[LIVRO]', '📕': '[LIVRO]',
+        '🖼️': '[IMG]', '🔒': '[TRAVA]', '⚖️': '[BALANCA]',
+        '👤': '[PESSOA]', '🧑‍': '[PESSOA]', '🕐': '[RELOGIO]',
+        '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
+        '🗑️': '[LIXO]', '🧹': '[LIMPEZA]',
+        # Aspas tipográficas
+        '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
+        # Pontuação especial
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
         '⁄': '/', '∕': '/', '⁎': '*',
+        # Espaços especiais
         '\u00a0': ' ', '\u2002': ' ', '\u2003': ' ',
         '\u2009': ' ', '\u200b': '',
     }
@@ -470,9 +506,20 @@ def sanitizar_texto_pdf(texto):
 
     return ''.join(texto_limpo)
 
+
+class _PDFOraculo(FPDF):
+    """FPDF com rodapé de paginação automática."""
+
+    def footer(self):
+        self.set_y(-12)
+        self.set_font("Helvetica", "I", 8)
+        self.cell(0, 5, f"Pagina {self.page_no()}/{{nb}}", align="C")
+
+
 def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
-    """Gera um PDF formatado da leitura oracular."""
-    pdf = FPDF()
+    """Gera um PDF formatado da leitura oracular, com mesa visual opcional."""
+    pdf = _PDFOraculo()
+    pdf.alias_nb_pages()
     pdf.add_page()
     pdf.set_auto_page_break(auto=True, margin=20)
 
@@ -527,7 +574,28 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
         pdf.ln(3)
         pdf.set_font("Helvetica", "", 11)
         for pos, carta in dados_leitura["cartas"].items():
-            pdf.cell(0, 6, f"  - {pos}: {carta}", ln=True)
+            # v4.1: linha SANITIZADA (antes causava crash com "—" e "♠")
+            pdf.cell(0, 6, sanitizar_texto_pdf(f"  - {pos}: {carta}"), ln=True)
+        pdf.ln(2)
+
+        # Clima de polaridades (somente Sibilla)
+        if str(dados_leitura.get("oraculo", "")).startswith("Sibilla"):
+            pol = {"Positiva": 0, "Neutra": 0, "Negativa": 0}
+            for carta in dados_leitura["cartas"].values():
+                ficha = _ficha_sibilla(carta)
+                if ficha:
+                    chave_pol = str(ficha.get("polaridade", ""))
+                    if chave_pol in pol:
+                        pol[chave_pol] += 1
+            pdf.set_font("Helvetica", "I", 10)
+            pdf.cell(
+                0, 6,
+                sanitizar_texto_pdf(
+                    f"Clima da tiragem: {pol['Positiva']} positivas, "
+                    f"{pol['Neutra']} neutras, {pol['Negativa']} negativas."
+                ),
+                ln=True,
+            )
         pdf.ln(5)
 
     if imagem_mesa is not None:
@@ -805,7 +873,7 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     fonte_num = _fonte(34)
 
     titulo = f"{metodo}  -  {oraculo}"
-    draw.text((largura // 2, 62), titulo, font=fonte_titulo, fill=(240, 230, 200), anchor="mm")
+    draw.text((largura // 2, 62), sanitizar_titulo_mesa(titulo), font=fonte_titulo, fill=(240, 230, 200), anchor="mm")
 
     centros, (cw, ch) = _layout_mesa(metodo, len(cartas_ordem))
 
@@ -813,7 +881,6 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
         x0, y0 = cx - cw // 2, cy - ch // 2
         x1, y1 = cx + cw // 2, cy + ch // 2
 
-        # Numeração da posição: medalhão decorativo (se houver) ou texto
         med = _medalhao_imagem(idx - 1)
         if med is not None:
             size = 72
@@ -856,6 +923,10 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     rodape = "Mesa gerada pelo Auxiliar de Cartomancia & Oraculos"
     draw.text((largura // 2, altura - 52), rodape, font=fonte_pos, fill=(200, 190, 160), anchor="mm")
     return img
+
+def sanitizar_titulo_mesa(texto):
+    """Remove símbolos problemáticos do título desenhado na mesa (PIL)."""
+    return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -936,7 +1007,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍ Dados do Consulente", expanded=True):
+    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -1264,13 +1335,23 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             st.download_button(
                 label="📄 Baixar Interpretação (.txt)",
                 data=st.session_state.interpretacao_atual.encode("utf-8-sig"),
-                file_name=f"leitura_{dados['nome_consulente'] or 'pessoal'}_{dados['data_hora'].replace('/','').replace(' ','_').replace(':','')}.txt",
+                file_name=f"leitura_{_slug(dados['nome_consulente'])}_{_carimbo(dados['data_hora'])}.txt",
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
             )
 
         with col_exp2:
             try:
+                # v4.1: MESA AUTOMÁTICA — se não houver mesa na sessão,
+                # desenha agora a partir das cartas salvas na leitura.
+                mesa_para_pdf = st.session_state.get("mesa_img")
+                if mesa_para_pdf is None and dados.get("cartas"):
+                    mesa_para_pdf = gerar_imagem_mesa(
+                        list(dados["cartas"].values()),
+                        dados.get("metodo", ""),
+                        dados.get("oraculo", ""),
+                    )
+
                 dados_orac_pdf = {
                     "nome": nome_oraculista,
                     "contato": contato_oraculista,
@@ -1280,13 +1361,13 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                     dados_leitura=dados,
                     modo_profissional=modo_profissional,
                     dados_oraculista=dados_orac_pdf,
-                    imagem_mesa=st.session_state.get("mesa_img"),
+                    imagem_mesa=mesa_para_pdf,
                 )
 
                 st.download_button(
                     label="📕 Baixar Relatório (.pdf)",
                     data=pdf_bytes,
-                    file_name=f"relatorio_{dados['nome_consulente'] or 'pessoal'}_{dados['data_hora'].replace('/','').replace(' ','_').replace(':','')}.pdf",
+                    file_name=f"relatorio_{_slug(dados['nome_consulente'])}_{_carimbo(dados['data_hora'])}.pdf",
                     mime="application/pdf",
                     use_container_width=True,
                 )
@@ -1306,7 +1387,6 @@ with tab_historico:
         "para uma Análise Comparativa Temporal (como a situação se desdobrou)."
     )
 
-    # ---------- Bloco da Análise Comparativa Temporal ----------
     if st.session_state.get("comparativa_id"):
         base = load_reading(st.session_state["comparativa_id"])
         if not base:
@@ -1407,10 +1487,14 @@ Realize a Análise Comparativa Temporal completa.
                 if st.session_state.get("comparativa_resultado"):
                     st.markdown("#### 📖 Análise do Desdobramento")
                     st.markdown(st.session_state["comparativa_resultado"])
+                    st.caption(
+                        "💾 Esta análise foi salva automaticamente no Histórico "
+                        "como 'Desdobramento Temporal'."
+                    )
                     st.download_button(
                         "📄 Baixar análise (.txt)",
                         data=st.session_state["comparativa_resultado"].encode("utf-8-sig"),
-                        file_name="desdobramento_temporal.txt",
+                        file_name=f"desdobramento_{_carimbo(datetime.now().strftime('%d/%m/%Y %H:%M'))}.txt",
                         mime="text/plain; charset=utf-8",
                     )
                     if st.button("🔄 Concluir e fechar análise"):
@@ -1418,7 +1502,6 @@ Realize a Análise Comparativa Temporal completa.
                         st.session_state["comparativa_resultado"] = None
                         st.rerun()
 
-    # ---------- Lista de leituras ----------
     leituras = list_readings()
 
     if not leituras:
@@ -1504,7 +1587,6 @@ with tab_stats:
             else:
                 st.caption("Sem dados de cartas.")
 
-        # Clima de polaridades (Sibilla)
         pol = Counter()
         for _, r in df.iterrows():
             if str(r["oraculo"]).startswith("Sibilla"):
@@ -1572,7 +1654,7 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v4.0 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v4.1 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
