@@ -1,14 +1,19 @@
 """
-Auxiliar de Cartomancia & Oráculos v3.4
+Auxiliar de Cartomancia & Oráculos v4.0
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
-Recursos: 
+Recursos:
 - 3 oráculos: Baralho Cigano (36), Tarô Tradicional (78), Sibilla Italiana (54)
 - Histórico SQLite, Exportação PDF/TXT, Modo Profissional, Múltiplos Tons de Leitura
 - Anti-duplicata, Sorteio Digital, Mesa Visual com arte real
 - Retry automático com backoff para erros transitórios (503/429/5xx)
 - Fichas técnicas do Sibilla enriquecem o prompt do Gemini
+v4.0:
+- ⏳ Análise Comparativa Temporal (reavaliar leituras antigas)
+- 🖼️ Medalhões decorativos na Mesa Visual (assets/medalhoes/)
+- 📊 Dashboard de Estatísticas (aba própria)
+- 📖 Aba de Manuais (lê os HTMLs da raiz: Sibilla, Tarô e Cigano)
 """
 
 import os
@@ -19,11 +24,14 @@ import math
 import random
 import sqlite3
 import unicodedata
+from collections import Counter
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 
+import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFont
 
 try:
@@ -55,7 +63,14 @@ MAX_TENTATIVAS = 4
 ESPERA_BASE_SEGUNDOS = 4
 PLACEHOLDER_CARTA = "-- Selecione uma carta --"
 PASTA_CARTAS = Path(__file__).parent / "assets" / "cartas"
+PASTA_MEDALHOES = Path(__file__).parent / "assets" / "medalhoes"
 ARQ_SIBILLA = Path(__file__).parent / "sibilla.json"
+
+MANUAIS = {
+    "Sibilla Italiana (54 cartas)": "manual-sibilla-completo.html",
+    "Tarô Tradicional (78 cartas)": "manual-taro-completo.html",
+    "Baralho Cigano (36 cartas)": "manual-cigano-completo.html",
+}
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -388,72 +403,71 @@ FOCO PRINCIPAL:
 """,
 }
 
+SYSTEM_INSTRUCTION_COMPARATIVA = """
+Você é um Oraculista especializado em ACOMPANHAMENTO TEMPORAL de tiragens.
+Você receberá: (A) uma LEITURA ORIGINAL com data, pergunta, cartas e interpretação; e (B) um RELATO ATUAL do consulente descrevendo o momento presente.
+
+SUA MISSÃO:
+1. Comparar as tendências apontadas na leitura original com o que de fato se desdobrou.
+2. Identificar: o que SE CONFIRMOU, o que SE TRANSFORMOU, o que permanece LATENTE.
+3. Reinterpretar as cartas originais à luz do relato atual (a carta X, que dizia Y, agora se revela como Z).
+4. Apontar o próximo movimento energético e uma ação prática para o ciclo que se abre.
+
+REGRAS:
+- Postura não-fatalista: tendências, nunca sentenças.
+- Valorize o livre-arbítrio e as escolhas feitas pelo consulente no período.
+- Linguagem clara, acolhedora e organizada.
+
+ESTRUTURA DA RESPOSTA:
+### ⏳ 1. O Que Se Confirmou
+### 🔄 2. O Que Se Transformou
+### 🌱 3. O Que Permanece Latente
+### 🧭 4. Releitura das Cartas Originais
+### 🕊️ 5. Próximo Movimento & Ação Prática
+"""
+
 # ==========================================
-# FUNÇÕES AUXILIARES - PDF (COM SANITIZAÇÃO EXPANDIDA)
+# FUNÇÕES AUXILIARES - PDF
 # ==========================================
 def sanitizar_texto_pdf(texto):
     """Remove/substitui caracteres não suportados pela fonte Helvetica (latin-1)."""
     if not texto:
         return ""
-    
-    # Dicionário expandido de substituições
+
     replacements = {
-        # Títulos estruturais
         '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
         '✨': '*', '⭐': '*', '💫': '*', '🌙': '*', '☀️': '*',
-        
-        # Travessões e hífens especiais
         '—': '-', '–': '-', '―': '-', '−': '-',
         '‐': '-', '‑': '-', '‒': '-', '⁃': '-',
-        
-        # Setas e símbolos
         '→': '->', '←': '<-', '↔': '<->', '⇒': '=>',
         '⇐': '<=', '⇔': '<=>', '➔': '->', '➜': '->',
-        
-        # Bullets e marcadores
         '•': '*', '✦': '*', '❖': '*', '◦': '*',
         '▪': '*', '▫': '*', '○': '*', '●': '*',
-        
-        # Emojis de status
         '⚠️': '[!]', '❌': '[X]', '✅': '[OK]',
         '❓': '[?]', '❗': '[!]', '⭕': '[O]',
-        
-        # Emojis de objeto
         '🔮': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
         '💾': '[SALVAR]', '📄': '[PG]', '📷': '[CAM]',
         '🎴': '[CARTA]', '🃏': '[BARALHO]', '🎲': '[DADO]',
-        
-        # Aspas tipográficas
+        '': '[TEMPO]', '🔄': '[CICLO]', '🌱': '[GERME]', '🧭': '[BUSSOLA]',
         '"': '"', '"': '"', ''': "'", ''': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
-        
-        # Pontuação especial
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
         '⁄': '/', '∕': '/', '⁎': '*',
-        
-        # Espaços especiais
-        '\u00a0': ' ',  # non-breaking space
-        '\u2002': ' ',  # en space
-        '\u2003': ' ',  # em space
-        '\u2009': ' ',  # thin space
-        '\u200b': '',   # zero-width space
+        '\u00a0': ' ', '\u2002': ' ', '\u2003': ' ',
+        '\u2009': ' ', '\u200b': '',
     }
-    
-    # Aplicar substituições
+
     for k, v in replacements.items():
         texto = texto.replace(k, v)
-    
-    # Remover qualquer caractere fora do latin-1
+
     texto_limpo = []
     for char in texto:
         try:
-            # Tenta codificar em latin-1
             char.encode('latin-1')
             texto_limpo.append(char)
         except UnicodeEncodeError:
-            # Caractere não suportado: substitui por '?'
             texto_limpo.append('?')
-    
+
     return ''.join(texto_limpo)
 
 def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
@@ -610,7 +624,6 @@ def _chaves_para_carta(nome):
         if not tokens:
             continue
 
-        # 1) Numeração inicial ("01.", "53.", "0.") -> chave numérica pura
         m = _CHAVE_NUMERO.match(tokens[0])
         if m:
             dig = m.group(1)
@@ -620,7 +633,6 @@ def _chaves_para_carta(nome):
         elif _NUM_ROMANO.match(tokens[0]):
             tokens = tokens[1:]
 
-        # 2) Nome entre parênteses (italiano/original) vira chave própria
         if "(" in segmento and ")" in segmento:
             dentro = segmento.split("(", 1)[1].rsplit(")", 1)[0]
             chave_dentro = _normalizar_texto(dentro)
@@ -629,14 +641,12 @@ def _chaves_para_carta(nome):
             segmento = segmento.split("(", 1)[0]
             tokens = [t for t in segmento.split() if t]
 
-        # 3) Arcano menor: "<valor> de <naipe>"
         if len(tokens) == 3 and tokens[1].lower() == "de":
             rank = _normalizar_texto(tokens[0])
             naipe = _normalizar_texto(tokens[2])
             naipe = _SINONIMOS_NAIPE.get(naipe, naipe)
             chaves.append(f"{naipe}{_RANK.get(rank, rank)}")
 
-        # 4) Núcleos sem artigos (palavra cheia e composta)
         nucleos = [
             _normalizar_texto(t) for t in tokens
             if _normalizar_texto(t) and _normalizar_texto(t) not in _ARTIGOS
@@ -649,7 +659,6 @@ def _chaves_para_carta(nome):
             chaves.append(nuc)
             chaves.extend(_SINONIMOS_CARTAS.get(nuc, []))
 
-    # Remove duplicados preservando a prioridade
     vistas = set()
     finais = []
     for c in chaves:
@@ -672,7 +681,7 @@ def _mapa_imagens_cartas():
     return indice
 
 def _pasta_neutra(nome_pasta):
-    """Pasta sem indicação de baralho (ex.: 'cartas') serve a qualquer oráculo."""
+    """Pasta sem indicação de baralho serve a qualquer oráculo."""
     return not any(palavra in nome_pasta for palavra in _PALAVRAS_BARALHO)
 
 def obter_imagem_carta(nome_carta, oraculo):
@@ -695,12 +704,35 @@ def obter_imagem_carta(nome_carta, oraculo):
         neutros = [c for c in candidatos if _pasta_neutra(c[1])]
         escolha = meus or neutros
         if not escolha:
-            continue  # nunca usa imagem de outro baralho
+            continue
         try:
             return Image.open(escolha[0][0]).convert("RGB")
         except Exception:
             continue
     return None
+
+# ==========================================
+# MEDALHÕES DECORATIVOS (assets/medalhoes/)
+# ==========================================
+@st.cache_data(show_spinner=False)
+def _lista_medalhoes():
+    """Lista imagens de medalhões disponíveis, em ordem alfabética."""
+    if not PASTA_MEDALHOES.exists():
+        return []
+    return [
+        str(p) for p in sorted(PASTA_MEDALHOES.glob("*"))
+        if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp")
+    ]
+
+def _medalhao_imagem(indice):
+    """Retorna o medalhão (RGBA) para a posição, ciclando a lista."""
+    lista = _lista_medalhoes()
+    if not lista:
+        return None
+    try:
+        return Image.open(lista[indice % len(lista)]).convert("RGBA")
+    except Exception:
+        return None
 
 # ==========================================
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
@@ -759,7 +791,7 @@ def _layout_mesa(metodo, n_posicoes):
     return centros, (card_w, card_h)
 
 def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
-    """Desenha a mesa virtual; usa a ARTE REAL da carta se existir em assets/."""
+    """Desenha a mesa virtual; usa arte real das cartas e medalhões decorativos."""
     largura, altura = 1600, 1000
     img = Image.new("RGB", (largura, altura), (28, 58, 48))
     draw = ImageDraw.Draw(img)
@@ -770,6 +802,7 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     fonte_titulo = _fonte(34)
     fonte_carta = _fonte(24)
     fonte_pos = _fonte(20)
+    fonte_num = _fonte(34)
 
     titulo = f"{metodo}  -  {oraculo}"
     draw.text((largura // 2, 62), titulo, font=fonte_titulo, fill=(240, 230, 200), anchor="mm")
@@ -780,7 +813,17 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
         x0, y0 = cx - cw // 2, cy - ch // 2
         x1, y1 = cx + cw // 2, cy + ch // 2
 
-        draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
+        # Numeração da posição: medalhão decorativo (se houver) ou texto
+        med = _medalhao_imagem(idx - 1)
+        if med is not None:
+            size = 72
+            med_rs = med.resize((size, size))
+            mx = cx - size // 2
+            my = max(y0 - size - 12, 12)
+            img.paste(med_rs, (mx, my), med_rs)
+            draw.text((cx, my + size // 2), str(idx), font=fonte_num, fill=(252, 248, 235), anchor="mm")
+        else:
+            draw.text((cx, max(y0 - 14, 46)), f"Posicao {idx}", font=fonte_pos, fill=(220, 200, 140), anchor="mm")
 
         arte = obter_imagem_carta(carta, oraculo) if carta else None
 
@@ -830,6 +873,10 @@ if "dados_leitura_atual" not in st.session_state:
     st.session_state.dados_leitura_atual = None
 if "mesa_img" not in st.session_state:
     st.session_state.mesa_img = None
+if "comparativa_id" not in st.session_state:
+    st.session_state.comparativa_id = None
+if "comparativa_resultado" not in st.session_state:
+    st.session_state.comparativa_resultado = None
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -872,16 +919,7 @@ with st.sidebar:
 
         spread_choice = st.selectbox(
             "Disposição da Tiragem",
-            options=[
-                "Linha de 3 Cartas",
-                "Linha de 5 Cartas",
-                "Bloco de 9 Cartas (3x3)",
-                "Cruz Simples (5 cartas)",
-                "Pirâmide Invertida (7 cartas)",
-                "Ferradura (7 cartas)",
-                "Grande Jogo (12 cartas)",
-                "Livre / Outro",
-            ],
+            options=list(ESTRUTURA_POSICOES.keys()) + ["Livre / Outro"],
             index=0,
         )
         if spread_choice == "Livre / Outro":
@@ -898,7 +936,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍ Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -923,7 +961,9 @@ st.markdown(
     "##### *Interpretação oracular sintática, ética e profunda com Google Gemini*"
 )
 
-tab_nova, tab_historico = st.tabs(["🆕 Nova Leitura", "📚 Histórico de Leituras"])
+tab_nova, tab_historico, tab_stats, tab_manuais = st.tabs(
+    ["🆕 Nova Leitura", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
+)
 
 # ========================
 # TAB 1 - NOVA LEITURA
@@ -1054,7 +1094,7 @@ with tab_nova:
             if st.button(
                 "🖼️ Gerar Mesa Visual",
                 use_container_width=True,
-                help="Desenha a mesa com as cartas para o relatório do cliente",
+                help="Desenha a mesa com as cartas (e medalhões) para o relatório",
             ):
                 if not cartas_selecionadas:
                     st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
@@ -1105,7 +1145,6 @@ with tab_nova:
                     [f"- {pos}: {carta}" for pos, carta in cartas_selecionadas.items()]
                 )
 
-                # Fichas técnicas Sibilla enriquecem o prompt
                 bloco_sibilla = ""
                 if oracle_choice.startswith("Sibilla") and SIBILLA_DADOS:
                     linhas_ficha = []
@@ -1258,12 +1297,128 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
 # ========================
-# TAB 2 - HISTÓRICO
+# TAB 2 - HISTÓRICO + COMPARATIVA TEMPORAL
 # ========================
 with tab_historico:
     st.markdown("### 📚 Leituras Salvas")
-    st.markdown("Acompanhe abaixo todas as suas leituras anteriores. Você pode recarregar ou excluir qualquer registro.")
+    st.markdown(
+        "Reabra leituras anteriores, exclua registros ou use o botão **⏳ Reavaliar** "
+        "para uma Análise Comparativa Temporal (como a situação se desdobrou)."
+    )
 
+    # ---------- Bloco da Análise Comparativa Temporal ----------
+    if st.session_state.get("comparativa_id"):
+        base = load_reading(st.session_state["comparativa_id"])
+        if not base:
+            st.session_state["comparativa_id"] = None
+        else:
+            with st.container(border=True):
+                st.markdown(f"### ⏳ Reavaliando a leitura de {base['data_hora']}")
+                st.caption(f"**Consulente:** {base['nome_consulente'] or 'Não informado'}")
+                st.caption(f"**Pergunta original:** {base['pergunta']}")
+                st.caption(
+                    "**Cartas:** " + " | ".join(f"{k}: {v}" for k, v in base["cartas"].items())
+                )
+                with st.expander("📜 Interpretação original"):
+                    st.markdown(base["interpretacao"])
+
+                relato_atual = st.text_area(
+                    "Como está a situação hoje? O que mudou desde a leitura original?",
+                    height=140,
+                    key="comp_relato",
+                    placeholder="Ex.: 'O contrato que estava travado foi assinado, mas surgiu uma nova tensão com o sócio...'",
+                )
+
+                c_ok, c_cancel = st.columns([3, 1])
+                with c_ok:
+                    btn_comp = st.button(
+                        "🔮 Analisar Desdobramento", type="primary", use_container_width=True
+                    )
+                with c_cancel:
+                    if st.button("✖ Cancelar", use_container_width=True):
+                        st.session_state["comparativa_id"] = None
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+
+                if btn_comp:
+                    if not relato_atual.strip():
+                        st.warning("Descreva brevemente o momento atual antes de analisar.")
+                    else:
+                        chave = obter_chave_api()
+                        if not chave:
+                            st.error("Chave de API não configurada.")
+                        else:
+                            try:
+                                client = genai.Client(api_key=chave)
+                                cartas_base = "\n".join(
+                                    f"- {k}: {v}" for k, v in base["cartas"].items()
+                                )
+                                prompt_comp = f"""
+LEITURA ORIGINAL:
+- Data: {base['data_hora']}
+- Oráculo: {base['oraculo']} | Método: {base['metodo']}
+- Pergunta: {base['pergunta']}
+- Cartas:
+{cartas_base}
+- Interpretação da época:
+{base['interpretacao']}
+
+RELATO ATUAL DO CONSULENTE:
+{relato_atual.strip()}
+
+Realize a Análise Comparativa Temporal completa.
+"""
+                                with st.spinner("⏳ Comparando passado e presente..."):
+                                    resp = chamar_gemini(
+                                        client,
+                                        prompt_comp,
+                                        types.GenerateContentConfig(
+                                            system_instruction=SYSTEM_INSTRUCTION_COMPARATIVA,
+                                            temperature=0.6,
+                                        ),
+                                    )
+                                if resp and resp.text:
+                                    st.session_state["comparativa_resultado"] = resp.text
+                                    dados_comp = {
+                                        "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                        "nome_consulente": base["nome_consulente"],
+                                        "signo_consulente": base["signo_consulente"],
+                                        "modo_atendimento": base["modo_atendimento"],
+                                        "oraculo": base["oraculo"],
+                                        "metodo": f"⏳ Desdobramento Temporal (leitura #{base['id']})",
+                                        "tom_leitura": "Comparativa Temporal",
+                                        "pergunta": f"[Desdobramento] {base['pergunta']}",
+                                        "cartas": base["cartas"],
+                                        "interpretacao": resp.text,
+                                    }
+                                    save_reading(dados_comp)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Não foi possível gerar a comparação.")
+                            except Exception as e:
+                                if eh_erroro_transitorio(e):
+                                    st.error(
+                                        "❌ **Alta demanda no Gemini (503/429).** "
+                                        "Aguarde 1–2 minutos e tente novamente."
+                                    )
+                                else:
+                                    st.error(f"❌ **Erro na comparação:** `{str(e)}`")
+
+                if st.session_state.get("comparativa_resultado"):
+                    st.markdown("#### 📖 Análise do Desdobramento")
+                    st.markdown(st.session_state["comparativa_resultado"])
+                    st.download_button(
+                        "📄 Baixar análise (.txt)",
+                        data=st.session_state["comparativa_resultado"].encode("utf-8-sig"),
+                        file_name="desdobramento_temporal.txt",
+                        mime="text/plain; charset=utf-8",
+                    )
+                    if st.button("🔄 Concluir e fechar análise"):
+                        st.session_state["comparativa_id"] = None
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+
+    # ---------- Lista de leituras ----------
     leituras = list_readings()
 
     if not leituras:
@@ -1288,10 +1443,128 @@ with tab_historico:
                             st.session_state.dados_leitura_atual = loaded
                             st.session_state.interpretacao_atual = loaded["interpretacao"]
                             st.rerun()
+                    if st.button("⏳ Reavaliar", key=f"comp_{reading_id}", use_container_width=True):
+                        st.session_state["comparativa_id"] = reading_id
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+                    if st.button("🗑️ Excluir", key=f"del_{reading_id}", use_container_width=True):
+                        delete_reading(reading_id)
+                        st.rerun()
 
-                if st.button("🗑️ Excluir", key=f"del_{reading_id}", use_container_width=True):
-                    delete_reading(reading_id)
-                    st.rerun()
+# ========================
+# TAB 3 - ESTATÍSTICAS
+# ========================
+with tab_stats:
+    st.markdown("### 📊 Painel de Estatísticas do Oraculista")
+
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT * FROM leituras", conn)
+    conn.close()
+
+    if df.empty:
+        st.info("📭 Ainda não há leituras para analisar. O painel ganha vida após a primeira leitura.")
+    else:
+        df["data_dt"] = pd.to_datetime(df["data_hora"], format="%d/%m/%Y %H:%M", errors="coerce")
+        df["periodo"] = df["data_dt"].dt.to_period("M").astype(str)
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Leituras totais", len(df))
+        ultimos_30 = df[df["data_dt"] >= (pd.Timestamp.now() - pd.Timedelta(days=30))]
+        m2.metric("Últimos 30 dias", len(ultimos_30))
+        m3.metric("Oráculo favorito", df["oraculo"].value_counts().idxmax().split(" (")[0])
+        m4.metric("Tom favorito", df["tom_leitura"].value_counts().idxmax().split(" (")[0])
+
+        st.markdown("#### 📈 Leituras por mês")
+        serie_mes = df["periodo"].value_counts().sort_index()
+        st.line_chart(serie_mes)
+
+        ca, cb = st.columns(2)
+        with ca:
+            st.markdown("#### 🃏 Por oráculo")
+            st.bar_chart(df["oraculo"].value_counts())
+        with cb:
+            st.markdown("#### 📐 Por método")
+            st.bar_chart(df["metodo"].value_counts())
+
+        cc, cd = st.columns(2)
+        with cc:
+            st.markdown("#### 🎨 Por tom de leitura")
+            st.bar_chart(df["tom_leitura"].value_counts())
+        with cd:
+            st.markdown("#### 🎴 Cartas mais sorteadas (Top 10)")
+            cnt = Counter()
+            for j in df["cartas"]:
+                try:
+                    cnt.update(json.loads(j).values())
+                except Exception:
+                    continue
+            if cnt:
+                top = pd.Series(dict(cnt.most_common(10)))
+                st.bar_chart(top)
+            else:
+                st.caption("Sem dados de cartas.")
+
+        # Clima de polaridades (Sibilla)
+        pol = Counter()
+        for _, r in df.iterrows():
+            if str(r["oraculo"]).startswith("Sibilla"):
+                try:
+                    vals = json.loads(r["cartas"]).values()
+                except Exception:
+                    continue
+                for v in vals:
+                    d = _ficha_sibilla(v)
+                    if d:
+                        pol[str(d.get("polaridade", "Neutra"))] += 1
+        if pol:
+            st.markdown("#### ⚖️ Clima das tiragens Sibilla (polaridades)")
+            p1, p2, p3 = st.columns(3)
+            p1.metric("Positivas [+]", pol.get("Positiva", 0))
+            p2.metric("Neutras [±]", pol.get("Neutra", 0))
+            p3.metric("Negativas [−]", pol.get("Negativa", 0))
+
+# ========================
+# TAB 4 - MANUAIS
+# ========================
+with tab_manuais:
+    st.markdown("### 📖 Manuais do Terapeuta")
+    st.markdown(
+        "Estude a linhagem, a arquitetura e as combinações de cada oráculo. "
+        "Os manuais são arquivos HTML na raiz do projeto — leia aqui ou baixe para estudar offline."
+    )
+
+    manual_escolha = st.selectbox("Escolha o manual", options=list(MANUAIS.keys()), index=0)
+    arquivo_manual = Path(__file__).parent / MANUAIS[manual_escolha]
+
+    if arquivo_manual.exists():
+        try:
+            conteudo = arquivo_manual.read_text(encoding="utf-8")
+            col_leitura, col_acoes = st.columns([4, 1])
+            with col_leitura:
+                components.html(conteudo, height=780, scrolling=True)
+            with col_acoes:
+                st.download_button(
+                    "💾 Baixar manual (.html)",
+                    data=conteudo.encode("utf-8"),
+                    file_name=MANUAIS[manual_escolha],
+                    mime="text/html; charset=utf-8",
+                    use_container_width=True,
+                )
+                st.markdown("---")
+                st.markdown(
+                    f"[🔗 Abrir no GitHub](https://github.com/LunaraHolistics/AuxCards/blob/main/{MANUAIS[manual_escolha]})"
+                )
+                st.caption(
+                    "Dica: o arquivo baixado abre em qualquer navegador, "
+                    "com imagens carregadas direto do repositório."
+                )
+        except Exception as e:
+            st.error(f"Erro ao carregar o manual: {e}")
+    else:
+        st.warning(
+            f"Arquivo `{MANUAIS[manual_escolha]}` não encontrado na raiz do projeto. "
+            "Salve o HTML correspondente ao lado do `app.py` e faça o commit."
+        )
 
 # ==========================================
 # RODAPÉ
@@ -1299,7 +1572,7 @@ with tab_historico:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v3.4 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v4.0 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
