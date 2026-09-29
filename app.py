@@ -3,16 +3,12 @@ Auxiliar de Cartomancia & Oráculos v3.4
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
-Recursos: Histórico SQLite, Exportação PDF, Modo Profissional, Múltiplos Tons de Leitura.
-v2.1: Acesso a secrets à prova de crash.
-v2.2: Nome do modelo centralizado na constante MODELO_GEMINI.
-v2.3: Retry automático com backoff para erros transitórios (503/429/5xx).
-v3.0: PDF corrigido (bytes), Sorteio Digital, Limpar Seleção e Mesa Visual (PIL).
-v3.1: Anti-duplicata de cartas nos menus + Mesa Visual/PDF com arte real (assets/cartas/).
-v3.2: Casador inteligente de nomes de arquivo (taro e cigano).
-v3.3: Oráculo Sibilla Italiana no sistema.
-v3.4: Sibilla com 54 cartas via sibilla.json (fichas técnicas no prompt) +
-      casador de imagens numéricas (01..54) + proteção anti-mistura de baralhos.
+Recursos: 
+- 3 oráculos: Baralho Cigano (36), Tarô Tradicional (78), Sibilla Italiana (54)
+- Histórico SQLite, Exportação PDF/TXT, Modo Profissional, Múltiplos Tons de Leitura
+- Anti-duplicata, Sorteio Digital, Mesa Visual com arte real
+- Retry automático com backoff para erros transitórios (503/429/5xx)
+- Fichas técnicas do Sibilla enriquecem o prompt do Gemini
 """
 
 import os
@@ -393,23 +389,72 @@ FOCO PRINCIPAL:
 }
 
 # ==========================================
-# FUNÇÕES AUXILIARES - PDF
+# FUNÇÕES AUXILIARES - PDF (COM SANITIZAÇÃO EXPANDIDA)
 # ==========================================
 def sanitizar_texto_pdf(texto):
-    """Remove emojis e caracteres não suportados pelo PDF (latin-1)."""
+    """Remove/substitui caracteres não suportados pela fonte Helvetica (latin-1)."""
+    if not texto:
+        return ""
+    
+    # Dicionário expandido de substituições
     replacements = {
+        # Títulos estruturais
         '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
-        '✨': '*', '⭐': '*', '💫': '*',
-        '—': '-', '→': '->', '←': '<-', '↔': '<->',
-        '•': '-', '✦': '*', '❖': '*',
+        '✨': '*', '⭐': '*', '💫': '*', '🌙': '*', '☀️': '*',
+        
+        # Travessões e hífens especiais
+        '—': '-', '–': '-', '―': '-', '−': '-',
+        '‐': '-', '‑': '-', '‒': '-', '⁃': '-',
+        
+        # Setas e símbolos
+        '→': '->', '←': '<-', '↔': '<->', '⇒': '=>',
+        '⇐': '<=', '⇔': '<=>', '➔': '->', '➜': '->',
+        
+        # Bullets e marcadores
+        '•': '*', '✦': '*', '❖': '*', '◦': '*',
+        '▪': '*', '▫': '*', '○': '*', '●': '*',
+        
+        # Emojis de status
         '⚠️': '[!]', '❌': '[X]', '✅': '[OK]',
+        '❓': '[?]', '❗': '[!]', '⭕': '[O]',
+        
+        # Emojis de objeto
         '🔮': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
         '💾': '[SALVAR]', '📄': '[PG]', '📷': '[CAM]',
+        '🎴': '[CARTA]', '🃏': '[BARALHO]', '🎲': '[DADO]',
+        
+        # Aspas tipográficas
+        '"': '"', '"': '"', ''': "'", ''': "'",
+        '‹': '<', '›': '>', '«': '<<', '»': '>>',
+        
+        # Pontuação especial
+        '…': '...', '·': '.', '‧': '.', '⋅': '.',
+        '⁄': '/', '∕': '/', '⁎': '*',
+        
+        # Espaços especiais
+        '\u00a0': ' ',  # non-breaking space
+        '\u2002': ' ',  # en space
+        '\u2003': ' ',  # em space
+        '\u2009': ' ',  # thin space
+        '\u200b': '',   # zero-width space
     }
+    
+    # Aplicar substituições
     for k, v in replacements.items():
         texto = texto.replace(k, v)
-    texto = re.sub(r'[^\x00-\xFF]', '', texto)
-    return texto
+    
+    # Remover qualquer caractere fora do latin-1
+    texto_limpo = []
+    for char in texto:
+        try:
+            # Tenta codificar em latin-1
+            char.encode('latin-1')
+            texto_limpo.append(char)
+        except UnicodeEncodeError:
+            # Caractere não suportado: substitui por '?'
+            texto_limpo.append('?')
+    
+    return ''.join(texto_limpo)
 
 def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
     """Gera um PDF formatado da leitura oracular."""
