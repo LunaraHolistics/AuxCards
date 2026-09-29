@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual do Terapeuta - Sibilla Italiana 54 Cartas</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            color: #2c2c2c;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: #fff;
+        }
+        
+        @media print {
+            body {
+                padding: 15mm;
+                font-size: 11pt;
+            }
+            .page-break {
+                page-break-before: always;
+            }
+            .no-break {
+                page-break-inside: avoid;
+            }
+        }
+        
+        h1 {
+            font-size: 28pt;
+            color: #1a3a52;
+            text-align: center;
+            margin-bottom: 10mm;
+            border-bottom: 3px solid #8b4513;
+            padding-bottom: 5mm;
+        }
+        
+        h2 {
+            font-size: 18pt;
+            color: #8b4513;
+            margin-top: 8mm;
+            margin-bottom: 4mm;
+            border-left: 4px solid #1a3a52;
+            padding-left: 3mm;
+        }
+        
+        h3 {
+            font-size: 14pt;
+            color: #1a3a52;
+            margin-top: 6mm;
+            margin-bottom: 3mm;
+        }
+        
+        h4 {
+            font-size: 12pt;
+            color: #555;
+            margin-top: 4mm;
+            margin-bottom: 2mm;
+        }
+        
+        p {
+            margin-bottom: 3mm;
+            text-align: justify;
+        }
+        
+        ul, ol {
+            margin-left: 8mm;
+            margin-bottom: 3mm;
+        }
+        
+        li {
+            margin-bottom: 1.5mm;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 4mm 0;
+            font-size: 10pt;
+        }
+        
+        th, td {
+            border: 1px solid #ccc;
+            padding: 2mm;
+            text-align: left;
+        }
+        
+        th {
+            background-color: #1a3a52;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 4mm;
+            margin: 5mm 0;
+        }
+        
+        .card-item {
+            border: 2px solid #8b4513;
+            border-radius: 3mm;
+            padding: 3mm;
+            background: #fefefe;
+            page-break-inside: avoid;
+        }
+        
+        .card-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 2mm;
+            margin-bottom: 2mm;
+        }
+        
+        .card-title {
+            font-weight: bold;
+            color: #1a3a52;
+            font-size: 10pt;
+            margin-bottom: 1mm;
+        }
+        
+        .card-keywords {
+            font-size: 8pt;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .polaridade {
+            display: inline-block;
+            padding: 1mm 2mm;
+            border-radius: 2mm;
+            font-size: 8pt;
+            font-weight: bold;
+            margin-bottom: 1mm;
+        }
+        
+        .positiva {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .negativa {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .neutra {
+            background-color: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .cover {
+            text-align: center;
+            padding: 40mm 0;
+        }
+        
+        .cover h1 {
+            font-size: 36pt;
+            margin-bottom: 20mm;
+        }
+        
+        .cover p {
+            font-size: 14pt;
+            color: #666;
+            margin-bottom: 5mm;
+        }
+        
+        .toc {
+            page-break-after: always;
+        }
+        
+        .toc ul {
+            list-style: none;
+        }
+        
+        .toc li {
+            padding: 2mm 0;
+            border-bottom: 1px dotted #ccc;
+        }
+        
+        .chapter {
+            page-break-before: always;
+        }
+        
+        blockquote {
+            border-left: 4px solid #8b4513;
+            padding-left: 4mm;
+            margin: 3mm 0;
+            font-style: italic;
+            color: #555;
+        }
+        
+        code {
+            background-color: #f4f4f4;
+            padding: 0.5mm 1mm;
+            border-radius: 1mm;
+            font-family: 'Courier New', monospace;
+            font-size: 9pt;
+        }
+        
+        pre {
+            background-color: #f4f4f4;
+            padding: 3mm;
+            border-radius: 2mm;
+            overflow-x: auto;
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body>
+    <div class="cover">
+        <h1>MANUAL DO TERAPEUTA</h1>
+        <p><strong>Sibilla Italiana das 54 Cartas</strong></p>
+        <p>Tradição, conexão, limpeza, tiragens e a arte de combinar cartas</p>
+        <p style="margin-top: 30mm; font-size: 11pt; color: #999;">
+            Versão 1.0 —配套 do baralho autoral baseado na Vera Sibilla Italiana<br>
+            (52 cartas tradicionais + 2 guardiões)
+        </p>
+    </div>
+
+    <div class="toc chapter">
+        <h2>Sumário</h2>
+        <ul>
+            <li><strong>Capítulo 1</strong> — A Sibilla e sua Linhagem</li>
+            <li><strong>Capítulo 2</strong> — Arquitetura do Baralho</li>
+            <li><strong>Capítulo 3</strong> — Primeira Conexão</li>
+            <li><strong>Capítulo 4</strong> — Limpeza, Energização e Guarda</li>
+            <li><strong>Capítulo 5</strong> — Fundamentos da Leitura</li>
+            <li><strong>Capítulo 6</strong> — Ligação entre Cartas (Combinações)</li>
+            <li><strong>Capítulo 7</strong> — Tiragens</li>
+            <li><strong>Capítulo 8</strong> — Ritual de Sessão</li>
+            <li><strong>Capítulo 9</strong> — Ética e Autocuidado</li>
+            <li><strong>Apêndice A</strong> — As 54 cartas em síntese (com imagens)</li>
+            <li><strong>Apêndice B</strong> — Plano de estudo em 54 dias</li>
+            <li><strong>Apêndice C</strong> — Glossário</li>
+            <li><strong>Apêndice D</strong> — Integração com o sistema</li>
+        </ul>
+    </div>
+
+    <div class="chapter">
+        <h1>APRESENTAÇÃO</h1>
+        <p>Este manual acompanha um baralho único: as cenas clássicas da <strong>Vera Sibilla Italiana</strong> do século XIX, reproduzidas em pintura romântica sombria, acrescidas de <strong>duas cartas-guardiãs</strong> (53 – Nemico e 54 – Nemica, os inimigos declarados). Cada carta deste deck possui registro duplo: a <strong>tradição italiana</strong> (imagem, cena, simbolismo) e o <strong>sistema do terapeuta</strong> (polaridade, mensagem, invertida e combinações), integrado ao arquivo JSON do oráculo (ids 1–54).</p>
+        <p>Use este manual como mapa: primeiro estude, depois conecte, depois limpe, depois tire, depois combine. Nesta ordem, a Sibilla responde com clareza.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 1 — A Sibilla e sua Linhagem</h2>
+        
+        <h3>1.1 Origens</h3>
+        <p>A Sibilla nasce na Itália do século XIX, dentro da família europeia dos <em>les petits jeux</em> ("pequenos jogos"): baralhos de cenas cotidianas usados para consulta popular. A <strong>Vera Sibilla</strong> (também chamada <em>Sibilla della Zingara</em>) consolidou-se como o oráculo doméstico italiano: 52 cartas ilustradas com cenas de vida — o doente, o padre, a prisão, o cão fiel, o ladrão — transmitido entre gerações de <em>cartomanti</em>.</p>
+        
+        <h3>1.2 O que a diferencia</h3>
+        <ul>
+            <li><strong>Do Tarô (78 cartas):</strong> a Sibilla não tem Arcanos Maiores nem estrutura cabalística; sua força está na <strong>narrativa visual</strong> e nos naipes de baralho.</li>
+            <li><strong>Do Lenormand (36 cartas):</strong> a Sibilla é mais emocional e teatral; cada carta é uma <strong>cena completa</strong>, não um símbolo seco.</li>
+            <li><strong>Do baralho comum:</strong> a Sibilla empresta os naipes, mas cada carta carrega um <strong>título e uma história</strong> próprios.</li>
+        </ul>
+        
+        <h3>1.3 Os quatro naipes e seus domínios</h3>
+        <table>
+            <tr>
+                <th>Naipe</th>
+                <th>Domínio</th>
+                <th>Clima</th>
+                <th>Tempo (convenção)</th>
+            </tr>
+            <tr>
+                <td>♠ Espadas</td>
+                <td>Provas, mente, perdas, autoridade, transformações</td>
+                <td>Frio, noturno</td>
+                <td>Lento (meses/ano)</td>
+            </tr>
+            <tr>
+                <td>♥ Copas</td>
+                <td>Emoções, amor, família, lar</td>
+                <td>Quente, afetivo</td>
+                <td>Rápido (dias)</td>
+            </tr>
+            <tr>
+                <td>♣ Paus</td>
+                <td>Ação, trabalho, vitalidade, vida social</td>
+                <td>Móvel, expansivo</td>
+                <td>Médio (semanas)</td>
+            </tr>
+            <tr>
+                <td>♦ Ouros</td>
+                <td>Matéria, dinheiro, notícias, segredos</td>
+                <td>Denso, concreto</td>
+                <td>Médio-lento (meses)</td>
+            </tr>
+        </table>
+        
+        <h3>1.4 Os dois guardiões (53 e 54)</h3>
+        <p>Na tradição, o inimigo oculto vive no Valete e na Rainha de Espadas (41 e 45). Neste deck, as cartas <strong>53 (Nemico)</strong> e <strong>54 (Nemica)</strong> representam a <strong>inimizade declarada</strong>: quando aparecem, o conflito saiu das sombras. Leia a tiragem como um <em>teatro de confronto</em> — identifique quem ataca, quem defende e onde está a Fortuna.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 2 — Arquitetura do Baralho</h2>
+        
+        <h3>2.1 As 54 cartas</h3>
+        <p>A lista completa com polaridade e palavras-chave está no <strong>Apêndice A</strong>. Memorize primeiro as 12 cartas de corte e as 4 de "grande impacto" (17 Morte, 19 Fortuna, 33 Prisão, 25 Desgraça).</p>
+        
+        <h3>2.2 Polaridade e o clima da tiragem</h3>
+        <ul>
+            <li><strong>[+] Positiva</strong> — favorece o consulente.</li>
+            <li><strong>[-] Negativa</strong> — alerta, bloqueio, desafio.</li>
+            <li><strong>[±] Contextual</strong> — carta-espelho: amplifica as vizinhas.</li>
+        </ul>
+        <p><strong>Exercício de clima:</strong> antes de interpretar, conte as polaridades da tiragem. Maioria [+] = momento favorável; maioria [-] = pedido de cautela; empate = decisão nas mãos do consulente.</p>
+        
+        <h3>2.3 Cartas-personagem e significadores</h3>
+        <table>
+            <tr>
+                <th>Perfil</th>
+                <th>Carta</th>
+            </tr>
+            <tr><td>Consulente mulher (solteira/apaixonada)</td><td>46 – A Amante (Q♥)</td></tr>
+            <tr><td>Consulente mulher (casada)</td><td>48 – A Mulher Casada (Q♦)</td></tr>
+            <tr><td>Consulente jovem (qualquer gênero)</td><td>47 – A Jovem Donzela (Q♣)</td></tr>
+            <tr><td>Consulente homem (jovem/solteiro)</td><td>42 – O Amante (J♥)</td></tr>
+            <tr><td>Consulente homem (estabelecido)</td><td>50 – O Grande Senhor (K♥)</td></tr>
+            <tr><td>Consulente homem de negócios</td><td>52 – O Mercador (K♦)</td></tr>
+            <tr><td>Mulher mais velha / avó</td><td>05 – A Velha Senhora (2♠)</td></tr>
+            <tr><td>Homem solitário / viúvo</td><td>09 – O Viúvo (3♠)</td></tr>
+            <tr><td>Conselheiro / guia ético</td><td>49 – O Sacerdote (K♠)</td></tr>
+            <tr><td>Curador / técnico</td><td>51 – O Médico (K♣)</td></tr>
+            <tr><td>Criança</td><td>28 – O Bebê (7♦)</td></tr>
+        </table>
+        
+        <h3>2.4 Invertidas</h3>
+        <p>Este deck possui significados invertidos próprios. <strong>Decida antes de embaralhar</strong> se usará invertidas (recomendado: sim, após dominar as direitas). Marque-as no corte: cartas que saírem de cabeça para baixo são lidas invertidas.</p>
+        
+        <h3>2.5 Direção e olhar (técnica avançada)</h3>
+        <p>Observe para onde a cena "aponta": personagens voltados para o significador trazem o assunto <strong>ao</strong> consulente; voltados para fora, <strong>levam</strong> o assunto embora. Cartas de objeto (carta, baú, cálice) "entregam" seu conteúdo na direção do olhar.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 3 — Primeira Conexão</h2>
+        
+        <h3>3.1 O despertar (primeiros 7 dias)</h3>
+        <p>Durma com o baralho ao lado da cama. Cada manhã, tire <strong>uma carta sem pergunta</strong>, observe a cena por 3 minutos e anote no diário: o que vi, o que senti, o que aconteceu no dia. No 7º dia, releia: você já conhece a voz do deck.</p>
+        
+        <h3>3.2 Consagração ritual</h3>
+        <ol>
+            <li>Pano claro novo, vela branca, incenso de alecrim ou lavanda.</li>
+            <li>Passe carta por carta na fumaça, da 1 à 54, nomeando cada título em voz baixa.</li>
+            <li>Com o deck fechado sobre o coração, faça três respirações e declare: <em>"Este baralho é instrumento de verdade, acolhimento e clareza. Que fale apenas o que servir ao bem."</em></li>
+            <li>Dê um <strong>nome</strong> ao baralho e registre a data na primeira página do diário.</li>
+        </ol>
+        
+        <h3>3.3 Vínculo diário</h3>
+        <p>Antes de cada sessão: segure o deck, três respirações, formule em silêncio a intenção da leitura. Após a sessão: agradeça ao deck em voz alta. Parece simples — é exatamente isso que cria vínculo.</p>
+        
+        <h3>3.4 Diário do terapeuta</h3>
+        <p>Caderno exclusivo: data, pergunta (com consentimento), cartas saídas, impressão intuitiva, o que de fato aconteceu. Em 6 meses, este diário vale mais que qualquer livro.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 4 — Limpeza, Energização e Guarda</h2>
+        
+        <h3>4.1 Quando limpar</h3>
+        <ul>
+            <li>Após leituras com cartas pesadas (17, 25, 33, 36, 41, 45, 53, 54).</li>
+            <li>Após sessões de forte carga emocional (choro, raiva, pânico).</li>
+            <li>Se outra pessoa tocar o baralho.</li>
+            <li>Uma vez por ciclo lunar, como higiene básica.</li>
+        </ul>
+        
+        <h3>4.2 Menu de limpeza</h3>
+        <table>
+            <tr>
+                <th>Método</th>
+                <th>Como</th>
+            </tr>
+            <tr><td>Fumaça</td><td>Passe o deck fechado (ou carta a carta) em fumaça de alecrim, arruda ou incenso.</td></tr>
+            <tr><td>Som</td><td>Sino, tigela tibetana ou três palmas secas ao redor do deck aberto em leque.</td></tr>
+            <tr><td>Cristais</td><td>24h sobre placa de selenita ou dentro de geodo de ametista.</td></tr>
+            <tr><td>Lua</td><td>Lua cheia, da noite à madrugada, em janela coberta (luz indireta).</td></tr>
+            <tr><td>Sopro e intenção</td><td>Três sopros lentos sobre o deck, visualizando luz varrendo resíduos.</td></tr>
+            <tr><td><strong>Nunca</strong></td><td>Sal direto, água, sol prolongado (desbota a arte impressa).</td></tr>
+        </table>
+        
+        <h3>4.3 Energização</h3>
+        <p>Lua cheia para intuição; luz indireta da manhã para vitalidade; ou simplesmente segure o deck e visualize sua própria luz envolvendo as cartas — o baralho é espelho do terapeuta.</p>
+        
+        <h3>4.4 Guarda</h3>
+        <p>Bolsa de tecido natural (linho, algodão) ou caixa de madeira com um cristal de proteção. Tenha, se possível, <strong>dois decks</strong>: o de sessão (sagrado, intocável por outros) e o de estudo (livre).</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 5 — Fundamentos da Leitura</h2>
+        
+        <h3>5.1 A cena antes da palavra-chave</h3>
+        <p>Pergunte sempre à imagem: <strong>Quem? Faz o quê? Onde? Com que luz? Para onde olha?</strong> Só então consulte a palavra-chave. A cena é a frase; a palavra-chave é o resumo.</p>
+        
+        <h3>5.2 As três camadas</h3>
+        <ol>
+            <li><strong>Imagem</strong> (o que vejo)</li>
+            <li><strong>Tradição</strong> (palavra-chave e mensagem do sistema)</li>
+            <li><strong>Intuição</strong> (o que sinto)</li>
+        </ol>
+        <p>Uma leitura madura costura as três — nunca só uma.</p>
+        
+        <h3>5.3 Tempo (convenção de trabalho)</h3>
+        <p>Use a tabela do item 1.3. Refine com cartas de tempo: 01 Desprazer e 38 Constância alongam; 44 Mensageiro e 39 Leveza aceleram; 10 Mirante congela até nova notícia.</p>
+        
+        <h3>5.4 A palavra responsável</h3>
+        <p>Cartas difíceis (17 Morte, 33 Prisão, 25 Desgraça) descrevem <strong>processos</strong>, não sentenças. Traduza sempre em verbo de ação: "algo precisa terminar", "há um limite a respeitar", "revise o que é seu". Nunca profetize morte, diagnóstico médico ou sentença judicial — encaminhe ao profissional.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 6 — Ligação entre Cartas (Combinações)</h2>
+        
+        <h3>6.1 Regra de ouro</h3>
+        <p><strong>Cartas vizinhas se modificam.</strong> A carta mais forte do par (cortes, 53/54, 17, 19, 25, 33) domina e colore a vizinha.</p>
+        
+        <h3>6.2 Pares e tríades narrativas</h3>
+        <p>Leia o par como frase: <em>sujeito + verbo</em>. Ex.: 44 Mensageiro + 08 A Carta = "a notícia chega por escrito". Tríades: <em>sujeito + ação + desfecho</em>.</p>
+        
+        <h3>6.3 Ecos à distância</h3>
+        <p>Naipes repetidos na tiragem = tema insistente; números repetidos = sincronicidade; duas cartas-personagem frente a frente = diálogo ou confronto direto.</p>
+        
+        <h3>6.4 Combinações clássicas do sistema</h3>
+        <table>
+            <tr>
+                <th>Par</th>
+                <th>Leitura</th>
+            </tr>
+            <tr><td>13 Doente + 51 Médico</td><td>Cura certa; ajuda competente chega.</td></tr>
+            <tr><td>16 Falsidade + 15 Amiga</td><td>Traição de quem era confiança.</td></tr>
+            <tr><td>17 Morte + 28 Bebê</td><td>Fim que gesta começo novo.</td></tr>
+            <tr><td>33 Prisão + 39 Leveza</td><td>Libertação; quebra de rotina opressora.</td></tr>
+            <tr><td>40 Ladrão + 22 Dinheiro</td><td>Perda financeira; revise contratos.</td></tr>
+            <tr><td>53/54 + 19 Fortuna</td><td>Vitória sobre o inimigo declarado.</td></tr>
+            <tr><td>14 Amor + 38 Constância</td><td>Amor duradouro, compromisso sólido.</td></tr>
+            <tr><td>29 Ciúmes + 16 Falsidade</td><td>Mentiras alimentando paranoia.</td></tr>
+            <tr><td>09 Viúvo + 30 Esperança</td><td>Luto em processo de cura.</td></tr>
+            <tr><td>07 Soberba + 50 Grande Senhor</td><td>Autoridade arrogante; abuso de poder.</td></tr>
+        </table>
+        
+        <h3>6.5 Os guardiões como amplificadores</h3>
+        <p>53/54 ao lado de uma carta-personagem nomeiam <strong>quem</strong> ataca abertamente; ao lado de 19 Fortuna, anunciam derrota do agressor; ao lado de 33 Prisão, indicam perseguição real (busque apoio legal).</p>
+        
+        <h3>6.6 Método para criar suas combinações</h3>
+        <p>Escolha duas cartas ao acaso, escreva uma frase única que una as duas cenas, guarde no diário. Dez combinações próprias por semana = repertório vivo em um mês.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 7 — Tiragens</h2>
+        
+        <h3>7.1 Carta do Dia (1 carta)</h3>
+        <p>Manhã: uma carta, três minutos de cena, anote. Noite: registre o eco. Treino de vocabulário.</p>
+        
+        <h3>7.2 Triângulo da Sibilla (3 cartas)</h3>
+        <pre>   [2]
+ [1]   [3]</pre>
+        <p>1 Situação · 2 Desafio · 3 Conselho.</p>
+        
+        <h3>7.3 Cruz de Cinco</h3>
+        <pre>      [4]
+   [2][1][3]
+      [5]</pre>
+        <p>1 Coração da questão · 2 Passado · 3 Futuro próximo · 4 Conselho consciente · 5 Tendência de desfecho.</p>
+        
+        <h3>7.4 Espelho de Nove (3×3)</h3>
+        <pre>[1][2][3]
+[4][5][6]
+[7][8][9]</pre>
+        <p>Panorama completo; 5 = núcleo; linhas = passado/presente/tendência; colunas = mente/emoção/ação.</p>
+        
+        <h3>7.5 Linha do Amor (5 cartas)</h3>
+        <p><code>[1][2][3][4][5]</code> → Eu · Tu · O vínculo · O desafio · A tendência.</p>
+        
+        <h3>7.6 Trabalho e Prosperidade (5 cartas)</h3>
+        <p><code>[1][2][3][4][5]</code> → Presente · Obstáculo · Recurso oculto · Ação recomendada · Tendência.</p>
+        
+        <h3>7.7 Grande Tableau das 54</h3>
+        <p>Grelha <strong>9 colunas × 6 linhas</strong> com todas as cartas. Regras de leitura:</p>
+        <ul>
+            <li><strong>Linha do significador</strong> = presente; acima = passado/influências; abaixo = futuro/oculto.</li>
+            <li><strong>Coluna do significador</strong> = tema central do momento.</li>
+            <li><strong>Última linha</strong> = conselho final da Sibilla.</li>
+            <li>Cartas <strong>encostadas</strong> no significador = forças ativas; <strong>cantos diagonais</strong> = surpresas.</li>
+            <li>Leia também as <strong>cartas que olham para o significador</strong> (direção da cena).</li>
+        </ul>
+        
+        <h3>7.8 Sim ou Não (3 cartas + pesagem)</h3>
+        <p>Some polaridades: 2 ou 3 [+] = sim; 2 ou 3 [-] = não; empate com [±] = "depende de você" (leia a carta central como condição).</p>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 8 — Ritual de Sessão</h2>
+        <ol>
+            <li><strong>Espaço:</strong> luz suave, vela, baralho sobre o pano, celulares em silêncio.</li>
+            <li><strong>Acolhida e consentimento:</strong> explique limites; peça permissão para ler.</li>
+            <li><strong>Pergunta:</strong> ajude a formular em aberto ("o que preciso saber sobre…?").</li>
+            <li><strong>Embaralhamento:</strong> consulente corta em duas pilhas com a mão não dominante; você recolhe e marca as invertidas.</li>
+            <li><strong>Leitura:</strong> panorama primeiro (clima de polaridades), depois cenas, depois combinações, por fim síntese.</li>
+            <li><strong>Fecho:</strong> resuma em três frases; ofereça uma ação prática; agradeça.</li>
+            <li><strong>Pós:</strong> limpeza rápida (sopro ou som), registro no diário, sigilo absoluto.</li>
+        </ol>
+    </div>
+
+    <div class="chapter">
+        <h2>Capítulo 9 — Ética e Autocuidado</h2>
+        <ul>
+            <li>Não leia saúde, direito ou morte como sentença: descreva processos e encaminhe.</li>
+            <li>Terceiros: leia apenas o que toca o consulente; não devasse a vida alheia.</li>
+            <li>Não crie dependência: toda leitura termina com o poder devolvido ao consulente.</li>
+            <li>Sigilo é sagrado; registros, anônimos.</li>
+            <li>Autocuidado: pausa entre sessões, limpeza semanal, estudo contínuo, supervisão entre pares.</li>
+            <li>O baralho cansa junto: respeite dias em que "ele não fala" — descanse ambos.</li>
+        </ul>
+    </div>
+
+    <div class="chapter">
+        <h1>APÊNDICE A — As 54 cartas em síntese</h1>
+        <p style="text-align: center; font-style: italic; margin-bottom: 8mm;">
+            Referência visual completa com imagens, polaridade e palavras-chave
+        </p>
+        
+        <div class="card-grid">
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/01.jpg" alt="01 - Desprazer">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">01 - Desprazer (A♠)</div>
+                <div class="card-keywords">melancolia · atraso · resiliência</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/02.jpg" alt="02 - A Conversação">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">02 - A Conversação (A♥)</div>
+                <div class="card-keywords">diálogo · acordos · clareza</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/03.jpg" alt="03 - Núpcias">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">03 - Núpcias (A♣)</div>
+                <div class="card-keywords">união · contrato · celebração</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/04.jpg" alt="04 - A Sala">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">04 - A Sala (A♦)</div>
+                <div class="card-keywords">vida social · aparências · público</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/05.jpg" alt="05 - A Velha Senhora">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">05 - A Velha Senhora (2♠)</div>
+                <div class="card-keywords">sabedoria · passado · conselho</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/06.jpg" alt="06 - A Casa">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">06 - A Casa (2♥)</div>
+                <div class="card-keywords">lar · família · refúgio</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/07.jpg" alt="07 - A Soberba">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">07 - A Soberba (2♣)</div>
+                <div class="card-keywords">orgulho · vaidade · cegueira</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/08.jpg" alt="08 - A Carta">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">08 - A Carta (2♦)</div>
+                <div class="card-keywords">notícia · documento · mensagem</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/09.jpg" alt="09 - O Viúvo">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">09 - O Viúvo (3♠)</div>
+                <div class="card-keywords">solidão · luto · fim</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/10.jpg" alt="10 - O Mirante">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">10 - O Mirante (3♥)</div>
+                <div class="card-keywords">espera · expectativa · plano</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/11.jpg" alt="11 - A Viagem">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">11 - A Viagem (3♣)</div>
+                <div class="card-keywords">movimento · mudança · horizonte</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/12.jpg" alt="12 - Presente de Pedras Preciosas">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">12 - Presente de Pedras Preciosas (3♦)</div>
+                <div class="card-keywords">ganho · herança · recompensa</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/13.jpg" alt="13 - O Doente">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">13 - O Doente (4♠)</div>
+                <div class="card-keywords">enfermidade · exaustão · repouso</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/14.jpg" alt="14 - O Amor">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">14 - O Amor (4♥)</div>
+                <div class="card-keywords">paixão · entrega · romance</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/15.jpg" alt="15 - A Amiga">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">15 - A Amiga (4♣)</div>
+                <div class="card-keywords">lealdade · apoio · confidente</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/16.jpg" alt="16 - A Falsidade">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">16 - A Falsidade (4♦)</div>
+                <div class="card-keywords">engano · máscara · fofoca</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/17.jpg" alt="17 - A Morte">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">17 - A Morte (5♠)</div>
+                <div class="card-keywords">transformação · fim · renascimento</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/18.jpg" alt="18 - Alegria no Coração">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">18 - Alegria no Coração (5♥)</div>
+                <div class="card-keywords">contentamento · graça · paz</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/19.jpg" alt="19 - A Fortuna">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">19 - A Fortuna (5♣)</div>
+                <div class="card-keywords">sorte · oportunidade · proteção</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/20.jpg" alt="20 - A Melancolia">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">20 - A Melancolia (5♦)</div>
+                <div class="card-keywords">nostalgia · recolhimento · tristeza</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/21.jpg" alt="21 - Suspiros">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">21 - Suspiros (6♠)</div>
+                <div class="card-keywords">saudade · anseio · lamento</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/22.jpg" alt="22 - O Dinheiro">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">22 - O Dinheiro (6♥)</div>
+                <div class="card-keywords">prosperidade · estabilidade · ganho</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/23.jpg" alt="23 - Surpresa Consoladora">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">23 - Surpresa Consoladora (6♣)</div>
+                <div class="card-keywords">alívio · boa nova · reviravolta</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/24.jpg" alt="24 - O Pensamento">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">24 - O Pensamento (6♦)</div>
+                <div class="card-keywords">reflexão · plano · ideia</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/25.jpg" alt="25 - A Desgraça">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">25 - A Desgraça (7♠)</div>
+                <div class="card-keywords">revés · perda · cautela</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/26.jpg" alt="26 - O Literato">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">26 - O Literato (7♥)</div>
+                <div class="card-keywords">estudo · escrita · intelecto</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/27.jpg" alt="27 - Grande Consolo">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">27 - Grande Consolo (7♣)</div>
+                <div class="card-keywords">cura · conforto · recompensa</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/28.jpg" alt="28 - O Bebê">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">28 - O Bebê (7♦)</div>
+                <div class="card-keywords">início · fertilidade · inocência</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/29.jpg" alt="29 - Desesperado por Ciúmes">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">29 - Desesperado por Ciúmes (8♠)</div>
+                <div class="card-keywords">ciúme · posse · tormento</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/30.jpg" alt="30 - A Esperança">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">30 - A Esperança (8♥)</div>
+                <div class="card-keywords">fé · renovação · proteção</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/31.jpg" alt="31 - A Reunião">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">31 - A Reunião (8♣)</div>
+                <div class="card-keywords">reencontro · acordo · festa</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/32.jpg" alt="32 - A Empregada">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">32 - A Empregada (8♦)</div>
+                <div class="card-keywords">rotina · serviço · obrigação</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/33.jpg" alt="33 - A Prisão">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">33 - A Prisão (9♠)</div>
+                <div class="card-keywords">bloqueio · limite · opressão</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/34.jpg" alt="34 - A Fidelidade">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">34 - A Fidelidade (9♥)</div>
+                <div class="card-keywords">lealdade · confiança · laço</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/35.jpg" alt="35 - A Alegria">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">35 - A Alegria (9♣)</div>
+                <div class="card-keywords">festa · leveza · prazer</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/36.jpg" alt="36 - Os Delirantes">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">36 - Os Delirantes (9♦)</div>
+                <div class="card-keywords">ilusão · excesso · confusão</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/37.jpg" alt="37 - O Militar">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">37 - O Militar (10♠)</div>
+                <div class="card-keywords">autoridade · disciplina · rigor</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/38.jpg" alt="38 - A Constância">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">38 - A Constância (10♥)</div>
+                <div class="card-keywords">perseverança · estabilidade · duração</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/39.jpg" alt="39 - A Leveza">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">39 - A Leveza (10♣)</div>
+                <div class="card-keywords">fluidez · desapego · bom humor</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/40.jpg" alt="40 - O Ladrão">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">40 - O Ladrão (10♦)</div>
+                <div class="card-keywords">roubo · perda · fraude</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/41.jpg" alt="41 - O Inimigo Oculto">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">41 - O Inimigo Oculto (J♠)</div>
+                <div class="card-keywords">traição velada · rival na sombra</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/42.jpg" alt="42 - O Amante">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">42 - O Amante (J♥)</div>
+                <div class="card-keywords">apaixonado · sedução · juventude</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/43.jpg" alt="43 - O Mordomo">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">43 - O Mordomo (J♣)</div>
+                <div class="card-keywords">serviço · organização · esforço</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/44.jpg" alt="44 - O Mensageiro">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">44 - O Mensageiro (J♦)</div>
+                <div class="card-keywords">notícia · agilidade · movimento</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/45.jpg" alt="45 - A Inimiga Oculta">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">45 - A Inimiga Oculta (Q♠)</div>
+                <div class="card-keywords">inveja velada · rivalidade feminina</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/46.jpg" alt="46 - A Amante">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">46 - A Amante (Q♥)</div>
+                <div class="card-keywords">amada · charme · maturidade afetiva</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/47.jpg" alt="47 - A Jovem Donzela">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">47 - A Jovem Donzela (Q♣)</div>
+                <div class="card-keywords">inocência · começo · pureza</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/48.jpg" alt="48 - A Mulher Casada">
+                <span class="polaridade neutra">[±] Neutra</span>
+                <div class="card-title">48 - A Mulher Casada (Q♦)</div>
+                <div class="card-keywords">conjugalidade · gestão · maturidade</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/49.jpg" alt="49 - O Sacerdote">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">49 - O Sacerdote (K♠)</div>
+                <div class="card-keywords">orientação · ética · consciência</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/50.jpg" alt="50 - O Grande Senhor">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">50 - O Grande Senhor (K♥)</div>
+                <div class="card-keywords">proteção · generosidade · poder</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/51.jpg" alt="51 - O Médico">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">51 - O Médico (K♣)</div>
+                <div class="card-keywords">cura · ciência · solução</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/52.jpg" alt="52 - O Mercador">
+                <span class="polaridade positiva">[+] Positiva</span>
+                <div class="card-title">52 - O Mercador (K♦)</div>
+                <div class="card-keywords">negócio · comércio · abundância</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/53.jpg" alt="53 - Nemico">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">53 - Nemico (53)</div>
+                <div class="card-keywords">hostilidade aberta · sabotagem</div>
+            </div>
+            
+            <div class="card-item">
+                <img src="https://raw.githubusercontent.com/LunaraHolistics/AuxCards/main/assets/cartas/sibilla/54.jpg" alt="54 - Nemica">
+                <span class="polaridade negativa">[-] Negativa</span>
+                <div class="card-title">54 - Nemica (54)</div>
+                <div class="card-keywords">rivalidade aberta · intriga pública</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chapter">
+        <h2>APÊNDICE B — Plano de estudo em 54 dias</h2>
+        <p>Dia N = carta N. Ritual: observe a cena 3 minutos → leia a mensagem do sistema → tire uma carta do dia e anote a combinação com a carta-tema → feche com uma frase própria. Ao final, você terá 54 frases autorais: seu primeiro livro de combinações.</p>
+    </div>
+
+    <div class="chapter">
+        <h2>APÊNDICE C — Glossário</h2>
+        <ul>
+            <li><strong>Significador:</strong> carta que representa o consulente.</li>
+            <li><strong>Polaridade:</strong> carga [+]/[-]/[±].</li>
+            <li><strong>Invertida:</strong> carta lida de cabeça para baixo.</li>
+            <li><strong>Tableau:</strong> tiragem com todas as cartas.</li>
+            <li><strong>Echo:</strong> repetição de naipe/número à distância.</li>
+            <li><strong>Guardiões:</strong> cartas 53/54.</li>
+        </ul>
+    </div>
+
+    <div class="chapter">
+        <h2>APÊNDICE D — Integração com o sistema</h2>
+        <p>Os ids 1–54 do JSON correspondem exatamente às cartas deste manual e aos arquivos de imagem (<code>01.jpg</code> … <code>54.jpg</code>). Use <code>polaridade</code> para o clima automático, <code>posicao_invertida</code> para o modo reverso e <code>combinacoes</code> como base do motor de pares.</p>
+        
+        <blockquote>
+            <em>Que a Sibilla fale baixo, fale claro e fale sempre a serviço do bem.</em> 🔮
+        </blockquote>
+    </div>
+</body>
+</html>
