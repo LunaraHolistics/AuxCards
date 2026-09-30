@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v4.1
+Auxiliar de Cartomancia & Oráculos v4.2
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -9,15 +9,11 @@ Recursos:
 - Anti-duplicata, Sorteio Digital, Mesa Visual com arte real e medalhões
 - Retry automático com backoff para erros transitórios (503/429/5xx)
 - Fichas técnicas do Sibilla enriquecem o prompt do Gemini
-- Abas: Nova Leitura, Histórico (com Comparativa Temporal), Estatísticas, Manuais
+- Abas: Nova Leitura, Histórico, Estatísticas, Manuais, Estudo
 
-v4.1:
-- Mesa Visual AUTOMÁTICA no PDF (mesmo sem clique, inclusive p/ leituras do Histórico)
-- Fix do crash de PDF: linha de cartas agora sanitizada (travessão "—" e naipes ♠♥♣♦)
-- Rodapé do PDF com paginação (Página X/Y)
-- "Clima da tiragem" (polaridades Sibilla) impresso no relatório
-- Nomes de arquivo de download sem acentos/espaços (slug)
-- Aviso de salvamento automático na Análise Comparativa Temporal
+v4.2:
+- 🎓 NOVA ABA "ESTUDO": Modo Professor com geometria didática (Mesa Real, Relógio, Mesa de 9,
+  Templo de Afrodite, Pirâmide) - transplantado do sistema Lumina 1.9
 """
 
 import os
@@ -445,6 +441,142 @@ ESTRUTURA DA RESPOSTA:
 """
 
 # ==========================================
+# v4.2: SYSTEM INSTRUCTION - MODO PROFESSOR (ESTUDO)
+# ==========================================
+SYSTEM_INSTRUCTION_ESTUDO = """
+Você é um **Professor Sênior de Baralho Cigano (Escola Alemã)** atuando como mentor didático.
+
+SEU PAPEL:
+- Ensinar a mecânica, sintaxe e geometria do Baralho Cigano de forma clara e pedagógica.
+- Explicar conexões geométricas (espelhamentos, movimento do cavalo, diagonais, moldura).
+- Cruzar o significado da carta com a posição/casa ocupada.
+- Adaptar a profundidade ao nível do estudante (Iniciante/Intermediário/Avançado).
+
+REGRAS DIDÁTICAS:
+1. Use linguagem acessível mas técnica.
+2. Explique o "porquê" de cada conexão geométrica.
+3. Forneça exemplos práticos de como interpretar.
+4. Use analogias e metáforas para facilitar o entendimento.
+5. Seja encorajador e paciente.
+
+ESTRUTURA DA RESPOSTA:
+### 🎴 Carta na Posição
+### 📐 Conexões Geométricas
+### 🔗 Cruzamento de Significados
+### 💡 Dica Didática
+### 📚 Resumo para Memorização
+
+Gere a resposta em Markdown estruturado, focado em aprendizado.
+"""
+
+# ==========================================
+# v4.2: GEOMETRIA DAS TIRAGENS DE ESTUDO
+# ==========================================
+def _calcular_espelhamento(index: int, total_cartas: int) -> list:
+    """Calcula espelhamentos para Mesa Real (8x4 + 4 veredito)."""
+    if total_cartas != 36:
+        return []
+    
+    espelhos = []
+    # Espelhamento horizontal (mesma linha, lado oposto)
+    linha = index // 8
+    col = index % 8
+    if col < 4:
+        espelho_h = linha * 8 + (7 - col)
+    else:
+        espelho_h = linha * 8 + (7 - col)
+    
+    if espelho_h < 32 and espelho_h != index:
+        espelhos.append(espelho_h)
+    
+    return espelhos
+
+def _calcular_cavalo(index: int, total_cartas: int) -> list:
+    """Calcula movimento do cavalo (xadrez) para Mesa Real."""
+    if total_cartas != 36:
+        return []
+    
+    cavalos = []
+    linha = index // 8
+    col = index % 8
+    
+    movimentos = [
+        (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+        (1, -2), (1, 2), (2, -1), (2, 1)
+    ]
+    
+    for dl, dc in movimentos:
+        nova_linha = linha + dl
+        nova_col = col + dc
+        if 0 <= nova_linha < 4 and 0 <= nova_col < 8:
+            novo_index = nova_linha * 8 + nova_col
+            if novo_index != index:
+                cavalos.append(novo_index)
+    
+    return cavalos
+
+def _calcular_diagonais(index: int, total_cartas: int) -> list:
+    """Calcula diagonais para Mesa Real."""
+    if total_cartas != 36:
+        return []
+    
+    diagonais = []
+    linha = index // 8
+    col = index % 8
+    
+    # Diagonais superiores
+    if linha > 0:
+        if col > 0:
+            diagonais.append((linha - 1) * 8 + (col - 1))
+        if col < 7:
+            diagonais.append((linha - 1) * 8 + (col + 1))
+    
+    # Diagonais inferiores
+    if linha < 3:
+        if col > 0:
+            diagonais.append((linha + 1) * 8 + (col - 1))
+        if col < 7:
+            diagonais.append((linha + 1) * 8 + (col + 1))
+    
+    return [d for d in diagonais if d < 32]
+
+def _calcular_moldura() -> list:
+    """Retorna os 4 cantos da Mesa Real (moldura)."""
+    return [0, 7, 24, 31]
+
+def _calcular_oposicao_relogio(index: int) -> int:
+    """Calcula casa oposta no Relógio (12 casas)."""
+    if index >= 12:
+        return -1
+    return (index + 6) % 12
+
+def _calcular_diagonais_9cards(index: int) -> list:
+    """Calcula diagonais para Mesa de 9 cartas (3x3)."""
+    main_diag = [0, 4, 8]
+    anti_diag = [2, 4, 6]
+    result = []
+    
+    if index in main_diag:
+        result.extend([i for i in main_diag if i != index])
+    if index in anti_diag:
+        result.extend([i for i in anti_diag if i != index])
+    
+    return list(set(result))
+
+def _calcular_cruz_9cards(index: int) -> list:
+    """Calcula cruz (vertical/horizontal) para Mesa de 9 cartas."""
+    vertical = [1, 4, 7]
+    horizontal = [3, 4, 5]
+    result = []
+    
+    if index in vertical:
+        result.extend([i for i in vertical if i != index])
+    if index in horizontal:
+        result.extend([i for i in horizontal if i != index])
+    
+    return list(set(result))
+
+# ==========================================
 # FUNÇÕES AUXILIARES - PDF
 # ==========================================
 def sanitizar_texto_pdf(texto):
@@ -481,9 +613,10 @@ def sanitizar_texto_pdf(texto):
         '🖼️': '[IMG]', '🔒': '[TRAVA]', '⚖️': '[BALANCA]',
         '👤': '[PESSOA]', '🧑‍': '[PESSOA]', '🕐': '[RELOGIO]',
         '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
-        '🗑️': '[LIXO]', '🧹': '[LIMPEZA]',
+        '🗑️': '[LIXO]', '🧹': '[LIMPEZA]', '🎓': '[ESTUDO]',
+        '📐': '[GEOMETRIA]', '🧠': '[MENTE]',
         # Aspas tipográficas
-        '“': '"', '”': '"', '‘': "'", '’': "'",
+        '"': '"', '"': '"', ''': "'", ''': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
         # Pontuação especial
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
@@ -574,11 +707,9 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
         pdf.ln(3)
         pdf.set_font("Helvetica", "", 11)
         for pos, carta in dados_leitura["cartas"].items():
-            # v4.1: linha SANITIZADA (antes causava crash com "—" e "♠")
             pdf.cell(0, 6, sanitizar_texto_pdf(f"  - {pos}: {carta}"), ln=True)
         pdf.ln(2)
 
-        # Clima de polaridades (somente Sibilla)
         if str(dados_leitura.get("oraculo", "")).startswith("Sibilla"):
             pol = {"Positiva": 0, "Neutra": 0, "Negativa": 0}
             for carta in dados_leitura["cartas"].values():
@@ -949,6 +1080,14 @@ if "comparativa_id" not in st.session_state:
 if "comparativa_resultado" not in st.session_state:
     st.session_state.comparativa_resultado = None
 
+# v4.2: Estado para modo de estudo
+if "estudo_cartas" not in st.session_state:
+    st.session_state.estudo_cartas = []
+if "estudo_explicacao" not in st.session_state:
+    st.session_state.estudo_explicacao = None
+if "estudo_carta_selecionada" not in st.session_state:
+    st.session_state.estudo_carta_selecionada = None
+
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
 # ==========================================
@@ -1032,8 +1171,8 @@ st.markdown(
     "##### *Interpretação oracular sintática, ética e profunda com Google Gemini*"
 )
 
-tab_nova, tab_historico, tab_stats, tab_manuais = st.tabs(
-    ["🆕 Nova Leitura", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
+tab_nova, tab_historico, tab_stats, tab_manuais, tab_estudo = st.tabs(
+    ["🆕 Nova Leitura", "📚 Histórico", "📊 Estatísticas", "📖 Manuais", "🎓 Estudo"]
 )
 
 # ========================
@@ -1342,8 +1481,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
 
         with col_exp2:
             try:
-                # v4.1: MESA AUTOMÁTICA — se não houver mesa na sessão,
-                # desenha agora a partir das cartas salvas na leitura.
                 mesa_para_pdf = st.session_state.get("mesa_img")
                 if mesa_para_pdf is None and dados.get("cartas"):
                     mesa_para_pdf = gerar_imagem_mesa(
@@ -1648,13 +1785,208 @@ with tab_manuais:
             "Salve o HTML correspondente ao lado do `app.py` e faça o commit."
         )
 
+# ========================
+# TAB 5 - ESTUDO (v4.2: TRANSPLANTADO DO LUMINA 1.9)
+# ========================
+with tab_estudo:
+    st.markdown("### 🎓 Modo de Estudo Prático")
+    st.markdown(
+        "Aprenda a mecânica, sintaxe e geometria do Baralho Cigano com explicações didáticas do Professor Sênior."
+    )
+    st.markdown("---")
+
+    # Configuração da sessão de estudo
+    col_conf1, col_conf2, col_conf3 = st.columns(3)
+    
+    with col_conf1:
+        estudo_tiragem = st.selectbox(
+            "Tiragem de Estudo",
+            options=[
+                "Mesa Real (36 cartas)",
+                "Relógio Cigano (12+1)",
+                "Mesa de 9 Cartas (3x3)",
+                "Templo de Afrodite (7 cartas)",
+                "Pirâmide (6 cartas)",
+            ],
+            index=0,
+            key="estudo_tiragem_select",
+        )
+
+    with col_conf2:
+        estudo_nivel = st.selectbox(
+            "Nível do Estudante",
+            options=["Iniciante", "Intermediário", "Avançado"],
+            index=0,
+            key="estudo_nivel_select",
+        )
+
+    with col_conf3:
+        estudo_tema = st.selectbox(
+            "Tema da Pergunta",
+            options=["Geral", "Amor & Relacionamentos", "Trabalho & Finanças", "Espiritualidade & Caminho de Vida"],
+            index=0,
+            key="estudo_tema_select",
+        )
+
+    st.markdown("---")
+
+    # Botão para sortear cartas
+    if st.button("🎲 Sortear Cartas para Estudo", use_container_width=True, type="primary"):
+        cartas_disponiveis = [c for c in CARTAS_CIGANO if c != PLACEHOLDER_CARTA]
+        
+        if estudo_tiragem.startswith("Mesa Real"):
+            num_cartas = 36
+        elif estudo_tiragem.startswith("Relógio"):
+            num_cartas = 13
+        elif estudo_tiragem.startswith("Mesa de 9"):
+            num_cartas = 9
+        elif estudo_tiragem.startswith("Templo"):
+            num_cartas = 7
+        else:  # Pirâmide
+            num_cartas = 6
+        
+        st.session_state.estudo_cartas = random.sample(cartas_disponiveis, k=num_cartas)
+        st.session_state.estudo_carta_selecionada = None
+        st.session_state.estudo_explicacao = None
+        st.rerun()
+
+    # Exibição das cartas sorteadas
+    if st.session_state.estudo_cartas:
+        st.markdown("#### 🎴 Cartas Sorteadas (clique em uma para estudar)")
+        
+        # Layout responsivo baseado na tiragem
+        if estudo_tiragem.startswith("Mesa Real"):
+            cols = st.columns(8)
+        elif estudo_tiragem.startswith("Relógio"):
+            cols = st.columns(13)
+        elif estudo_tiragem.startswith("Mesa de 9"):
+            cols = st.columns(3)
+        elif estudo_tiragem.startswith("Templo"):
+            cols = st.columns(7)
+        else:  # Pirâmide
+            cols = st.columns(6)
+        
+        for idx, carta in enumerate(st.session_state.estudo_cartas):
+            col_idx = idx % len(cols)
+            with cols[col_idx]:
+                if st.button(
+                    carta.split(".")[0] if "." in carta else str(idx + 1),
+                    key=f"estudo_carta_{idx}",
+                    use_container_width=True,
+                ):
+                    st.session_state.estudo_carta_selecionada = idx
+                    st.session_state.estudo_explicacao = None
+                    st.rerun()
+
+    # Solicitar explicação ao Gemini
+    if st.session_state.estudo_carta_selecionada is not None:
+        carta_idx = st.session_state.estudo_carta_selecionada
+        carta_nome = st.session_state.estudo_cartas[carta_idx]
+        
+        st.markdown("---")
+        st.markdown(f"#### 🔍 Estudando: **{carta_nome}**")
+        
+        if st.button("📐 Pedir Explicação ao Professor", use_container_width=True, type="secondary"):
+            chave = obter_chave_api()
+            if not chave:
+                st.error("Chave de API não configurada.")
+            else:
+                try:
+                    client = genai.Client(api_key=chave)
+                    
+                    # Calcular geometria baseada na tiragem
+                    geometria_contexto = {}
+                    
+                    if estudo_tiragem.startswith("Mesa Real"):
+                        geometria_contexto = {
+                            "espelhamentos": _calcular_espelhamento(carta_idx, 36),
+                            "cavalos": _calcular_cavalo(carta_idx, 36),
+                            "diagonais": _calcular_diagonais(carta_idx, 36),
+                            "moldura": _calcular_moldura(),
+                        }
+                    elif estudo_tiragem.startswith("Relógio"):
+                        oposicao = _calcular_oposicao_relogio(carta_idx)
+                        geometria_contexto = {
+                            "casa_oposta": oposicao if oposicao >= 0 else None,
+                            "carta_central": st.session_state.estudo_cartas[12] if len(st.session_state.estudo_cartas) > 12 else None,
+                        }
+                    elif estudo_tiragem.startswith("Mesa de 9"):
+                        geometria_contexto = {
+                            "diagonais": _calcular_diagonais_9cards(carta_idx),
+                            "cruz": _calcular_cruz_9cards(carta_idx),
+                        }
+                    
+                    # Construir prompt
+                    prompt_estudo = f"""
+DADOS DA SESSÃO DE ESTUDO:
+- Tiragem: {estudo_tiragem}
+- Carta selecionada: {carta_nome} (posição {carta_idx + 1})
+- Nível do estudante: {estudo_nivel}
+- Tema: {estudo_tema}
+
+CARTAS NA TIRAGEM:
+{chr(10).join([f"{i+1}. {c}" for i, c in enumerate(st.session_state.estudo_cartas)])}
+
+CONTEXTO GEOMÉTRICO:
+{json.dumps(geometria_contexto, indent=2, ensure_ascii=False)}
+
+Explique de forma didática:
+1. O significado da carta nesta posição específica
+2. As conexões geométricas (espelhamentos, cavalos, diagonais, etc.)
+3. Como cruzar o significado da carta com a posição ocupada
+4. Dicas práticas para memorização
+5. Um exemplo de frase de interpretação
+
+Adapte a profundidade ao nível {estudo_nivel}.
+"""
+                    
+                    with st.spinner("🎓 Professor preparando a aula..."):
+                        resp = chamar_gemini(
+                            client,
+                            prompt_estudo,
+                            types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_ESTUDO,
+                                temperature=0.7,
+                            ),
+                        )
+                    
+                    if resp and resp.text:
+                        st.session_state.estudo_explicacao = resp.text
+                        st.rerun()
+                    else:
+                        st.error("❌ Não foi possível gerar a explicação.")
+                
+                except Exception as e:
+                    if eh_erroro_transitorio(e):
+                        st.error(
+                            "❌ **Alta demanda no Gemini (503/429).** "
+                            "Aguarde 1–2 minutos e tente novamente."
+                        )
+                    else:
+                        st.error(f"❌ **Erro ao consultar o Professor:** `{str(e)}`")
+
+    # Exibir explicação
+    if st.session_state.estudo_explicacao:
+        st.markdown("---")
+        st.markdown("#### 📖 Explicação do Professor")
+        with st.container(border=True):
+            st.markdown(st.session_state.estudo_explicacao)
+        
+        st.download_button(
+            "📄 Baixar aula (.txt)",
+            data=st.session_state.estudo_explicacao.encode("utf-8-sig"),
+            file_name=f"aula_{_slug(estudo_tiragem)}_{_carimbo(datetime.now().strftime('%d/%m/%Y %H:%M'))}.txt",
+            mime="text/plain; charset=utf-8",
+            use_container_width=True,
+        )
+
 # ==========================================
 # RODAPÉ
 # ==========================================
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v4.1 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v4.2 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
