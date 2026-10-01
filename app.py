@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v4.3
+Auxiliar de Cartomancia & Oráculos v4.4
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -12,8 +12,12 @@ Recursos:
 - Abas: Nova Leitura, Histórico, Estatísticas, Manuais, Estudo
 
 v4.2: Aba Estudo (Modo Professor com geometria didática, transplantado do Lumina 1.9).
-v4.3: Mesa de Estudo VISUAL — cartas reais na grelha, destaque da carta em estudo,
-      CENTRO identificado no Relógio, botão Limpar Mesa e carta ampliada na explicação.
+v4.3: Mesa de Estudo visual com cartas reais e destaque da carta em estudo.
+v4.4: Mesa de Estudo em IMAGEM ÚNICA com geometria fiel:
+      - Relógio Cigano em CÍRCULO (12 casas + centro)
+      - Mesa Real 8x4 + veredito centralizado
+      - Slider de zoom (sem cartas gigantes, sem scroll)
+      - Seleção por botões numerados compactos + borda dourada na carta ativa
 """
 
 import os
@@ -579,7 +583,7 @@ def sanitizar_texto_pdf(texto):
         '🧭': '[BUSSOLA]', '📊': '[GRAFICO]', '📈': '[GRAFICO]',
         '📚': '[LIVROS]', '📖': '[LIVRO]', '📕': '[LIVRO]',
         '🖼️': '[IMG]', '🔒': '[TRAVA]', '⚖️': '[BALANCA]',
-        '👤': '[PESSOA]', '🧑‍': '[PESSOA]', '🕐': '[RELOGIO]',
+        '👤': '[PESSOA]', '🧑': '[PESSOA]', '🕐': '[RELOGIO]',
         '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
         '🗑️': '[LIXO]', '🧹': '[LIMPEZA]', '🎓': '[ESTUDO]',
         '📐': '[GEOMETRIA]', '🧠': '[MENTE]',
@@ -1023,6 +1027,109 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
 def sanitizar_titulo_mesa(texto):
     """Remove símbolos problemáticos do título desenhado na mesa (PIL)."""
     return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
+
+# ==========================================
+# v4.4: MESA DE ESTUDO (GEOMETRIA FIEL + ZOOM)
+# ==========================================
+def _layout_estudo(tiragem, n_cartas):
+    """Define centros, tamanho das cartas e canvas conforme a tiragem de estudo."""
+    if tiragem.startswith("Mesa Real"):
+        centros = []
+        for row in range(4):
+            for col in range(8):
+                centros.append((140 + col * 190, 130 + row * 220))
+        for k in range(4):
+            centros.append((425 + k * 250, 1000))
+        return centros, (150, 200), (1600, 1120)
+
+    if tiragem.startswith("Relógio"):
+        centros = []
+        cx, cy = 600, 480
+        rx, ry = 470, 350
+        for i in range(12):
+            ang = math.radians(-90 + i * 30)
+            centros.append((int(cx + rx * math.cos(ang)), int(cy + ry * math.sin(ang))))
+        centros.append((cx, cy))
+        return centros, (150, 200), (1200, 960)
+
+    if tiragem.startswith("Mesa de 9"):
+        centros = []
+        for row in range(3):
+            for col in range(3):
+                centros.append((250 + col * 250, 150 + row * 270))
+        return centros, (190, 260), (950, 860)
+
+    if tiragem.startswith("Templo"):
+        centros = [
+            (250, 160), (250, 400), (250, 640),
+            (700, 160), (700, 400), (700, 640),
+            (475, 880),
+        ]
+        return centros, (170, 220), (950, 1000)
+
+    # Pirâmide (6): 3 - 2 - 1
+    centros = [
+        (300, 160), (500, 160), (700, 160),
+        (400, 420), (600, 420),
+        (500, 680),
+    ]
+    return centros, (170, 220), (1000, 840)
+
+def _desenhar_carta_estudo(img, draw, arte, cx, cy, cw, ch, idx, selecionada, fonte_num, fonte_carta):
+    """Desenha uma carta da mesa de estudo com selo numérico e destaque."""
+    x0, y0 = cx - cw // 2, cy - ch // 2
+    x1, y1 = cx + cw // 2, cy + ch // 2
+
+    draw.rounded_rectangle([x0 + 4, y0 + 6, x1 + 4, y1 + 6], radius=12, fill=(15, 30, 25))
+
+    if arte is not None:
+        ratio = min(cw / arte.width, ch / arte.height)
+        nw = max(1, int(arte.width * ratio))
+        nh = max(1, int(arte.height * ratio))
+        rs = arte.resize((nw, nh))
+        px, py = x0 + (cw - nw) // 2, y0 + (ch - nh) // 2
+        img.paste(rs, (px, py))
+    else:
+        draw.rounded_rectangle([x0, y0, x1, y1], radius=12, fill=(246, 240, 224), outline=(120, 90, 40), width=2)
+        draw.text((cx, cy), f"Carta {idx + 1}", font=fonte_carta, fill=(40, 30, 20), anchor="mm")
+
+    if selecionada:
+        draw.rounded_rectangle([x0 - 5, y0 - 5, x1 + 5, y1 + 5], radius=14, outline=(255, 215, 90), width=6)
+    else:
+        draw.rounded_rectangle([x0, y0, x1, y1], radius=12, outline=(196, 168, 90), width=2)
+
+    # Selo numérico no canto superior esquerdo
+    r = 16
+    draw.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=(30, 24, 40), outline=(255, 215, 90), width=2)
+    draw.text((x0, y0), str(idx + 1), font=fonte_num, fill=(255, 245, 220), anchor="mm")
+
+def gerar_imagem_mesa_estudo(cartas, tiragem, selecionada=None):
+    """Desenha a mesa de estudo completa em uma única imagem (geométrica e compacta)."""
+    centros, (cw, ch), (largura, altura) = _layout_estudo(tiragem, len(cartas))
+    img = Image.new("RGB", (largura, altura), (28, 58, 48))
+    draw = ImageDraw.Draw(img)
+
+    draw.rectangle([8, 8, largura - 8, altura - 8], outline=(196, 168, 90), width=3)
+
+    if tiragem.startswith("Relógio"):
+        draw.ellipse([600 - 470, 480 - 350, 600 + 470, 480 + 350], outline=(196, 168, 90), width=2)
+        draw.ellipse([600 - 300, 480 - 220, 600 + 300, 480 + 220], outline=(90, 70, 50), width=1)
+
+    fonte_num = _fonte(20)
+    fonte_carta = _fonte(18)
+
+    for idx, carta in enumerate(cartas):
+        if idx >= len(centros):
+            break
+        cx, cy = centros[idx]
+        arte = obter_imagem_carta(carta, "Baralho Cigano (Lenormand)")
+        _desenhar_carta_estudo(
+            img, draw, arte, cx, cy, cw, ch, idx,
+            selecionada is not None and selecionada == idx,
+            fonte_num, fonte_carta,
+        )
+
+    return img
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -1749,13 +1856,13 @@ with tab_manuais:
         )
 
 # ========================
-# TAB 5 - ESTUDO (v4.3: MESA VISUAL INTERATIVA)
+# TAB 5 - ESTUDO (v4.4: MESA GEOMÉTRICA COMPACTA)
 # ========================
 with tab_estudo:
     st.markdown("### 🎓 Modo de Estudo Prático")
     st.markdown(
         "Aprenda a mecânica, sintaxe e geometria do Baralho Cigano com o Professor Sênior. "
-        "Sorteie as cartas, observe a **mesa com as imagens reais** e clique em **🎓 Estudar** na carta desejada."
+        "Sorteie as cartas, observe a mesa na **geometria real da tiragem** e clique no número da carta que deseja estudar."
     )
     st.markdown("---")
 
@@ -1820,55 +1927,60 @@ with tab_estudo:
             st.session_state.estudo_explicacao = None
             st.rerun()
 
-    # ---------- MESA VISUAL INTERATIVA (v4.3) ----------
+    # ---------- MESA VISUAL COMPACTA (v4.4) ----------
     if st.session_state.estudo_cartas:
         cartas_estudo = st.session_state.estudo_cartas
         n_cartas = len(cartas_estudo)
 
-        if estudo_tiragem.startswith("Mesa Real"):
-            ncols = 8
-        elif estudo_tiragem.startswith("Relógio"):
-            ncols = 7
-        elif estudo_tiragem.startswith("Mesa de 9"):
-            ncols = 3
-        elif estudo_tiragem.startswith("Templo"):
-            ncols = 7
-        else:
-            ncols = 6
+        zoom_pct = st.slider(
+            "🔍 Zoom do tabuleiro (%)",
+            min_value=30, max_value=100, value=65, step=5,
+            key="estudo_zoom",
+            help="Ajuste o tamanho da mesa para caber na sua tela sem rolagem.",
+        )
 
-        st.markdown("#### 🎴 Mesa de Estudo — clique em **🎓 Estudar** na carta desejada")
+        bases_zoom = {
+            "Mesa Real": 1500,
+            "Relógio": 1000,
+            "Mesa de 9": 780,
+            "Templo": 820,
+            "Pirâmide": 860,
+        }
+        base_px = 1500
+        for chave_base, val_base in bases_zoom.items():
+            if estudo_tiragem.startswith(chave_base):
+                base_px = val_base
+                break
 
-        for row_start in range(0, n_cartas, ncols):
-            linha = cartas_estudo[row_start:row_start + ncols]
-            cols = st.columns(ncols)
-            for j, carta in enumerate(linha):
-                idx = row_start + j
-                with cols[j]:
-                    selecionada = (st.session_state.estudo_carta_selecionada == idx)
+        mesa_estudo = gerar_imagem_mesa_estudo(
+            cartas_estudo,
+            estudo_tiragem,
+            st.session_state.estudo_carta_selecionada,
+        )
+        st.image(mesa_estudo, width=int(base_px * zoom_pct / 100))
 
-                    if selecionada:
-                        st.markdown("🎓 **ESTUDANDO**")
+        st.markdown("#### 🎯 Clique no número da carta (igual ao selo dourado na mesa)")
+        botoes_cols = st.columns(12)
+        for idx in range(n_cartas):
+            with botoes_cols[idx % 12]:
+                rotulo_btn = str(idx + 1)
+                if estudo_tiragem.startswith("Relógio") and idx == 12:
+                    rotulo_btn = "C"
+                if st.button(
+                    rotulo_btn,
+                    key=f"estudo_btn_{idx}",
+                    use_container_width=True,
+                    type="primary" if st.session_state.estudo_carta_selecionada == idx else "secondary",
+                    help=cartas_estudo[idx],
+                ):
+                    st.session_state.estudo_carta_selecionada = idx
+                    st.session_state.estudo_explicacao = None
+                    st.rerun()
 
-                    arte = obter_imagem_carta(carta, "Baralho Cigano (Lenormand)")
-                    if arte is not None:
-                        st.image(arte, use_container_width=True)
-                    else:
-                        st.info(carta)
-
-                    rotulo_pos = f"Pos {idx + 1}"
-                    if estudo_tiragem.startswith("Relógio") and idx == 12:
-                        rotulo_pos = "⭐ CENTRO"
-                    st.caption(rotulo_pos)
-
-                    if st.button(
-                        "🎓 Estudar",
-                        key=f"estudo_btn_{idx}",
-                        use_container_width=True,
-                        type="primary" if selecionada else "secondary",
-                    ):
-                        st.session_state.estudo_carta_selecionada = idx
-                        st.session_state.estudo_explicacao = None
-                        st.rerun()
+        if st.session_state.estudo_carta_selecionada is not None and st.session_state.estudo_carta_selecionada < n_cartas:
+            idx_sel = st.session_state.estudo_carta_selecionada
+            rotulo_sel = "CENTRO" if (estudo_tiragem.startswith("Relógio") and idx_sel == 12) else f"Posição {idx_sel + 1}"
+            st.caption(f"✒️ Selecionada: **{rotulo_sel} — {cartas_estudo[idx_sel]}**")
     else:
         st.info("Clique em **🎲 Sortear Cartas para Estudo** para montar a mesa.")
 
@@ -2023,7 +2135,7 @@ Adapte a profundidade ao nível {estudo_nivel}.
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v4.3 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v4.4 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
