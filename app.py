@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v4.4
+Auxiliar de Cartomancia & Oráculos v4.5
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -11,13 +11,14 @@ Recursos:
 - Fichas técnicas do Sibilla enriquecem o prompt do Gemini
 - Abas: Nova Leitura, Histórico, Estatísticas, Manuais, Estudo
 
-v4.2: Aba Estudo (Modo Professor com geometria didática, transplantado do Lumina 1.9).
-v4.3: Mesa de Estudo visual com cartas reais e destaque da carta em estudo.
-v4.4: Mesa de Estudo em IMAGEM ÚNICA com geometria fiel:
-      - Relógio Cigano em CÍRCULO (12 casas + centro)
-      - Mesa Real 8x4 + veredito centralizado
-      - Slider de zoom (sem cartas gigantes, sem scroll)
-      - Seleção por botões numerados compactos + borda dourada na carta ativa
+v4.4: Relógio em círculo, mesa de estudo compacta com zoom e sem scroll.
+v4.5: MOTOR DE GEOMETRIA COMPLETO no Modo Estudo:
+      - Mesa Real: casa da posição, espelhos H/V/diagonal, linha/coluna, diagonais, cavalo, moldura, veredito
+      - Relógio: eixo de oposição, casas anterior/seguinte do ciclo, centro regente
+      - Mesa de 9: plano (linha) + tempo (coluna), centro, cruz, diagonais
+      - Templo de Afrodite: plano relacional, polo oposto do par, síntese
+      - Pirâmide: camada, origens e destinos do fluxo
+      - Painel visual "📐 Ver conexões" + Professor obrigado a explicar tudo no prompt
 """
 
 import os
@@ -444,116 +445,203 @@ ESTRUTURA DA RESPOSTA:
 ### 🕊️ 5. Próximo Movimento & Ação Prática
 """
 
+# ==========================================
+# v4.5: SYSTEM INSTRUCTION - MODO PROFESSOR (GEOMETRIA COMPLETA)
+# ==========================================
 SYSTEM_INSTRUCTION_ESTUDO = """
 Você é um **Professor Sênior de Baralho Cigano (Escola Alemã)** atuando como mentor didático.
 
 SEU PAPEL:
-- Ensinar a mecânica, sintaxe e geometria do Baralho Cigano de forma clara e pedagógica.
-- Explicar conexões geométricas (espelhamentos, movimento do cavalo, diagonais, moldura).
-- Cruzar o significado da carta com a posição/casa ocupada.
-- Adaptar a profundidade ao nível do estudante (Iniciante/Intermediário/Avançado).
+- Ensinar a mecânica, a sintaxe e a GEOMETRIA do Baralho Cigano de forma clara e pedagógica.
+- Você receberá um MAPA DE CONEXÕES pronto (casa, espelhos, oposições, linha, coluna,
+  diagonais, cavalo, moldura, veredito, eixos do relógio, planos e sínteses).
+- Use TODAS as conexões fornecidas na explicação, nomeando as cartas envolvidas.
 
-REGRAS DIDÁTICAS:
-1. Use linguagem acessível mas técnica.
-2. Explique o "porquê" de cada conexão geométrica.
-3. Forneça exemplos práticos de como interpretar.
-4. Use analogias e metáforas para facilitar o entendimento.
-5. Seja encorajador e paciente.
+OBRIGAÇÕES DIDÁTICAS (explique nesta ordem):
+1. A CARTA NA POSIÇÃO: significado nuclear da carta e o que a posição/casa modifica.
+   Na Mesa Real, explique sempre a CASA em que a carta caiu (tema da casa x tema da carta).
+2. ESPELHOS E OPOSIÇÕES: o que cada espelho/oposição revela como reflexo ou tensão.
+3. CONEXÕES VERTICAIS, HORIZONTAIS E DIAGONAIS: como linha, coluna e diagonais
+   contextualizam a carta (passado/futuro da coluna, ambiente da linha, surpresas diagonais).
+4. CAVALO E MOLDURA/VEREDITO (quando fornecidos): movimentos inesperados e o pano de fundo.
+5. SÍNTESE NARRATIVA: una tudo em 2-3 frases de interpretação modelo.
+6. DICA DE MEMORIZAÇÃO: um gancho mnemônico ou analogia.
 
-ESTRUTURA DA RESPOSTA:
-### 🎴 Carta na Posição
-### 📐 Conexões Geométricas
-### 🔗 Cruzamento de Significados
-### 💡 Dica Didática
-### 📚 Resumo para Memorização
+REGRAS:
+- Linguagem acessível mas técnica; explique o "porquê" de cada conexão.
+- Adapte a profundidade ao nível do estudante (Iniciante/Intermediário/Avançado).
+- Postura ética: tendências e processos, nunca sentenças.
 
-Gere a resposta em Markdown estruturado, focado em aprendizado.
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA:
+### 🎴 1. A Carta na Posição (e sua Casa)
+### 🪞 2. Espelhos e Oposições
+### 📐 3. Verticais, Horizontais e Diagonais
+### 🐴 4. Cavalo, Moldura e Veredito (quando houver)
+### 🔗 5. Síntese Narrativa
+### 💡 6. Dica Didática
+### 📚 7. Resumo para Memorização
 """
 
 # ==========================================
-# GEOMETRIA DAS TIRAGENS DE ESTUDO
+# v4.5: MOTOR DE GEOMETRIA COMPLETO DO ESTUDO
 # ==========================================
-def _calcular_espelhamento(index: int, total_cartas: int) -> list:
-    """Calcula espelhamentos para Mesa Real (8x4 + 4 veredito)."""
-    if total_cartas != 36:
-        return []
-    linha = index // 8
-    col = index % 8
-    espelho_h = linha * 8 + (7 - col)
-    if espelho_h < 32 and espelho_h != index:
-        return [espelho_h]
-    return []
+def geo_mesa_real(idx):
+    """Geometria completa da Mesa Real (8x4 + veredito centralizado)."""
+    geo = {"casa": idx + 1, "moldura": [0, 7, 24, 31], "veredito": [32, 33, 34, 35]}
+    if idx < 32:
+        linha = idx // 8
+        col = idx % 8
+        geo["linha"] = [linha * 8 + c for c in range(8) if c != col]
+        geo["coluna"] = [r * 8 + col for r in range(4) if r != linha]
+        geo["espelho_horizontal"] = linha * 8 + (7 - col)
+        geo["espelho_vertical"] = (3 - linha) * 8 + col
+        geo["espelho_diagonal"] = (3 - linha) * 8 + (7 - col)
+        diag = []
+        cav = []
+        for dl, dc in ((-1, -1), (-1, 1), (1, -1), (1, 1)):
+            r, c = linha + dl, col + dc
+            if 0 <= r < 4 and 0 <= c < 8:
+                diag.append(r * 8 + c)
+        for dl, dc in ((-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)):
+            r, c = linha + dl, col + dc
+            if 0 <= r < 4 and 0 <= c < 8:
+                cav.append(r * 8 + c)
+        geo["diagonais_vizinhas"] = diag
+        geo["cavalo"] = cav
+    return geo
 
-def _calcular_cavalo(index: int, total_cartas: int) -> list:
-    """Calcula movimento do cavalo (xadrez) para Mesa Real."""
-    if total_cartas != 36:
-        return []
-    cavalos = []
-    linha = index // 8
-    col = index % 8
-    movimentos = [
-        (-2, -1), (-2, 1), (-1, -2), (-1, 2),
-        (1, -2), (1, 2), (2, -1), (2, 1)
-    ]
-    for dl, dc in movimentos:
-        nova_linha = linha + dl
-        nova_col = col + dc
-        if 0 <= nova_linha < 4 and 0 <= nova_col < 8:
-            novo_index = nova_linha * 8 + nova_col
-            if novo_index != index:
-                cavalos.append(novo_index)
-    return cavalos
+def geo_relogio(idx):
+    """Geometria do Relógio Cigano (12 casas + centro)."""
+    geo = {}
+    if idx < 12:
+        geo["casa"] = idx + 1
+        geo["oposta"] = (idx + 6) % 12
+        geo["anterior"] = (idx - 1) % 12
+        geo["seguinte"] = (idx + 1) % 12
+        geo["centro"] = 12
+    else:
+        geo["centro_self"] = True
+        geo["casas"] = list(range(12))
+    return geo
 
-def _calcular_diagonais(index: int, total_cartas: int) -> list:
-    """Calcula diagonais para Mesa Real."""
-    if total_cartas != 36:
-        return []
-    diagonais = []
-    linha = index // 8
-    col = index % 8
-    if linha > 0:
-        if col > 0:
-            diagonais.append((linha - 1) * 8 + (col - 1))
-        if col < 7:
-            diagonais.append((linha - 1) * 8 + (col + 1))
-    if linha < 3:
-        if col > 0:
-            diagonais.append((linha + 1) * 8 + (col - 1))
-        if col < 7:
-            diagonais.append((linha + 1) * 8 + (col + 1))
-    return [d for d in diagonais if d < 32]
+def geo_mesa9(idx):
+    """Geometria da Mesa de 9 (3x3): planos, tempos, cruz, diagonais, centro."""
+    linha = idx // 3
+    col = idx % 3
+    return {
+        "plano": linha,
+        "tempo": col,
+        "linha": [linha * 3 + c for c in range(3) if c != col],
+        "coluna": [r * 3 + col for r in range(3) if r != linha],
+        "cruz": [1, 3, 5, 7] if idx == 4 else ([4] + ([1, 7] if col == 1 else []) + ([3, 5] if linha == 1 else [])),
+        "diagonais": [i for i in ([0, 4, 8] if idx in (0, 4, 8) else []) + ([2, 4, 6] if idx in (2, 4, 6) else []) if i != idx],
+        "centro": 4,
+    }
 
-def _calcular_moldura() -> list:
-    """Retorna os 4 cantos da Mesa Real (moldura)."""
-    return [0, 7, 24, 31]
+def geo_afrodite(idx):
+    """Geometria do Templo de Afrodite (2 polos de 3 planos + síntese)."""
+    planos = ["Mental", "Sentimental", "Físico"]
+    geo = {}
+    if idx < 6:
+        geo["plano"] = planos[idx % 3]
+        geo["polo"] = "A" if idx < 3 else "B"
+        geo["par"] = idx + 3 if idx < 3 else idx - 3
+        geo["sintese"] = 6
+    else:
+        geo["sintese_self"] = True
+        geo["polo_a"] = [0, 1, 2]
+        geo["polo_b"] = [3, 4, 5]
+    return geo
 
-def _calcular_oposicao_relogio(index: int) -> int:
-    """Calcula casa oposta no Relógio (12 casas)."""
-    if index >= 12:
-        return -1
-    return (index + 6) % 12
+def geo_piramide(idx):
+    """Geometria da Pirâmide (3-2-1): camadas e fluxo de influência."""
+    geo = {}
+    if idx <= 2:
+        geo["camada"] = "Topo (contexto / plano mental)"
+        geo["origem"] = []
+        geo["alimenta"] = [3] if idx == 0 else ([3, 4] if idx == 1 else [4])
+    elif idx <= 4:
+        geo["camada"] = "Meio (ação / sentimento)"
+        geo["origem"] = [0, 1] if idx == 3 else [1, 2]
+        geo["alimenta"] = [5]
+    else:
+        geo["camada"] = "Base (síntese / conclusão)"
+        geo["origem"] = [3, 4]
+        geo["alimenta"] = []
+    return geo
 
-def _calcular_diagonais_9cards(index: int) -> list:
-    """Calcula diagonais para Mesa de 9 cartas (3x3)."""
-    main_diag = [0, 4, 8]
-    anti_diag = [2, 4, 6]
-    result = []
-    if index in main_diag:
-        result.extend([i for i in main_diag if i != index])
-    if index in anti_diag:
-        result.extend([i for i in anti_diag if i != index])
-    return list(set(result))
+def _linhas_geometria(tiragem, idx, cartas):
+    """Gera linhas legíveis com TODAS as conexões da carta selecionada."""
+    def nome(i):
+        return cartas[i] if 0 <= i < len(cartas) else "(vazio)"
+    def lista(idxs):
+        return "; ".join(f"pos {i + 1}: {nome(i)}" for i in idxs) if idxs else "(nenhuma)"
 
-def _calcular_cruz_9cards(index: int) -> list:
-    """Calcula cruz (vertical/horizontal) para Mesa de 9 cartas."""
-    vertical = [1, 4, 7]
-    horizontal = [3, 4, 5]
-    result = []
-    if index in vertical:
-        result.extend([i for i in vertical if i != index])
-    if index in horizontal:
-        result.extend([i for i in horizontal if i != index])
-    return list(set(result))
+    linhas = []
+
+    if tiragem.startswith("Mesa Real"):
+        g = geo_mesa_real(idx)
+        tema_casa = CARTAS_CIGANO[g["casa"]] if g["casa"] < len(CARTAS_CIGANO) else "?"
+        linhas.append(
+            f"- CASA: a carta estudada ({nome(idx)}) cai na **Casa {g['casa']} ({tema_casa})** — "
+            f"o tema da casa colore o assunto da carta."
+        )
+        if idx < 32:
+            linhas.append(f"- ESPELHO HORIZONTAL (esq-dir): pos {g['espelho_horizontal'] + 1}: {nome(g['espelho_horizontal'])}")
+            linhas.append(f"- ESPELHO VERTICAL (cima-baixo): pos {g['espelho_vertical'] + 1}: {nome(g['espelho_vertical'])}")
+            linhas.append(f"- ESPELHO DIAGONAL (cantos): pos {g['espelho_diagonal'] + 1}: {nome(g['espelho_diagonal'])}")
+            linhas.append(f"- MESMA LINHA (ambiente presente): {lista(g['linha'])}")
+            linhas.append(f"- MESMA COLUNA (linha do tempo): {lista(g['coluna'])}")
+            linhas.append(f"- DIAGONAIS VIZINHAS (surpresas): {lista(g['diagonais_vizinhas'])}")
+            linhas.append(f"- MOVIMENTO DO CAVALO (saltos inesperados): {lista(g['cavalo'])}")
+        else:
+            linhas.append("- VEREDITO: esta carta faz parte do Veredito Final (posições 33-36).")
+        linhas.append(f"- MOLDURA (cantos da mesa): {lista(g['moldura'])}")
+        if idx < 32:
+            linhas.append(f"- VEREDITO FINAL (últimas 4): {lista(g['veredito'])}")
+
+    elif tiragem.startswith("Relógio"):
+        g = geo_relogio(idx)
+        if idx < 12:
+            linhas.append(f"- CASA {g['casa']} do ciclo (área da vida / mês correspondente).")
+            linhas.append(f"- OPOSIÇÃO (eixo de tensão): pos {g['oposta'] + 1}: {nome(g['oposta'])}")
+            linhas.append(f"- CASA ANTERIOR (passado do ciclo): pos {g['anterior'] + 1}: {nome(g['anterior'])}")
+            linhas.append(f"- CASA SEGUINTE (futuro do ciclo): pos {g['seguinte'] + 1}: {nome(g['seguinte'])}")
+            linhas.append(f"- CENTRO (regente do período): pos 13: {nome(12)}")
+        else:
+            linhas.append("- CENTRO DO RELÓGIO: esta carta rege e filtra todas as 12 casas.")
+            linhas.append(f"- CASAS DO CICLO: {lista(g['casas'])}")
+
+    elif tiragem.startswith("Mesa de 9"):
+        g = geo_mesa9(idx)
+        planos = ["Mental (linha superior)", "Emocional/Ação (linha central)", "Físico/Resultado (linha inferior)"]
+        tempos = ["Passado (coluna esquerda)", "Presente (coluna central)", "Futuro (coluna direita)"]
+        linhas.append(f"- PLANO: {planos[g['plano']]} | TEMPO: {tempos[g['tempo']]}.")
+        if idx != 4:
+            linhas.append(f"- CENTRO (foco da leitura): pos 5: {nome(4)}")
+        linhas.append(f"- CRUZ (vertical+horizontal): {lista(g['cruz'])}")
+        linhas.append(f"- DIAGONAIS (X): {lista(g['diagonais'])}")
+
+    elif tiragem.startswith("Templo"):
+        g = geo_afrodite(idx)
+        if idx < 6:
+            linhas.append(f"- PLANO {g['plano']} do polo {g['polo']}.")
+            linhas.append(f"- POLO OPOSTO DO PAR: pos {g['par'] + 1}: {nome(g['par'])}")
+            linhas.append(f"- SÍNTESE DO VÍNCULO: pos 7: {nome(6)}")
+        else:
+            linhas.append("- CARTA-SÍNTESE: compare os dois polos plano a plano.")
+            linhas.append(f"- POLO A: {lista(g['polo_a'])}")
+            linhas.append(f"- POLO B: {lista(g['polo_b'])}")
+
+    else:  # Pirâmide
+        g = geo_piramide(idx)
+        linhas.append(f"- CAMADA: {g['camada']}.")
+        if g.get("origem"):
+            linhas.append(f"- RECEBE INFLUÊNCIA DE: {lista(g['origem'])}")
+        if g.get("alimenta"):
+            linhas.append(f"- ALIMENTA: {lista(g['alimenta'])}")
+
+    return linhas
 
 # ==========================================
 # FUNÇÕES AUXILIARES - PDF
@@ -586,7 +674,8 @@ def sanitizar_texto_pdf(texto):
         '👤': '[PESSOA]', '🧑': '[PESSOA]', '🕐': '[RELOGIO]',
         '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
         '🗑️': '[LIXO]', '🧹': '[LIMPEZA]', '🎓': '[ESTUDO]',
-        '📐': '[GEOMETRIA]', '🧠': '[MENTE]',
+        '📐': '[GEOMETRIA]', '🧠': '[MENTE]', '🪞': '[ESPELHO]',
+        '🐴': '[CAVALO]',
         '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
@@ -1029,7 +1118,7 @@ def sanitizar_titulo_mesa(texto):
     return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
 
 # ==========================================
-# v4.4: MESA DE ESTUDO (GEOMETRIA FIEL + ZOOM)
+# MESA DE ESTUDO (GEOMETRIA FIEL + ZOOM)
 # ==========================================
 def _layout_estudo(tiragem, n_cartas):
     """Define centros, tamanho das cartas e canvas conforme a tiragem de estudo."""
@@ -1067,7 +1156,6 @@ def _layout_estudo(tiragem, n_cartas):
         ]
         return centros, (170, 220), (950, 1000)
 
-    # Pirâmide (6): 3 - 2 - 1
     centros = [
         (300, 160), (500, 160), (700, 160),
         (400, 420), (600, 420),
@@ -1098,7 +1186,6 @@ def _desenhar_carta_estudo(img, draw, arte, cx, cy, cw, ch, idx, selecionada, fo
     else:
         draw.rounded_rectangle([x0, y0, x1, y1], radius=12, outline=(196, 168, 90), width=2)
 
-    # Selo numérico no canto superior esquerdo
     r = 16
     draw.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=(30, 24, 40), outline=(255, 215, 90), width=2)
     draw.text((x0, y0), str(idx + 1), font=fonte_num, fill=(255, 245, 220), anchor="mm")
@@ -1856,13 +1943,14 @@ with tab_manuais:
         )
 
 # ========================
-# TAB 5 - ESTUDO (v4.4: MESA GEOMÉTRICA COMPACTA)
+# TAB 5 - ESTUDO (v4.5: GEOMETRIA COMPLETA EXPLICADA PELA IA)
 # ========================
 with tab_estudo:
     st.markdown("### 🎓 Modo de Estudo Prático")
     st.markdown(
-        "Aprenda a mecânica, sintaxe e geometria do Baralho Cigano com o Professor Sênior. "
-        "Sorteie as cartas, observe a mesa na **geometria real da tiragem** e clique no número da carta que deseja estudar."
+        "Aprenda a mecânica, a sintaxe e a **geometria completa** do Baralho Cigano. "
+        "O Professor explica a carta, sua posição/casa, oposições, espelhos, verticais, "
+        "diagonais, cavalo, moldura e veredito — conforme a tiragem escolhida."
     )
     st.markdown("---")
 
@@ -1927,7 +2015,7 @@ with tab_estudo:
             st.session_state.estudo_explicacao = None
             st.rerun()
 
-    # ---------- MESA VISUAL COMPACTA (v4.4) ----------
+    # ---------- MESA VISUAL COMPACTA ----------
     if st.session_state.estudo_cartas:
         cartas_estudo = st.session_state.estudo_cartas
         n_cartas = len(cartas_estudo)
@@ -1984,7 +2072,7 @@ with tab_estudo:
     else:
         st.info("Clique em **🎲 Sortear Cartas para Estudo** para montar a mesa.")
 
-    # ---------- EXPLICAÇÃO DO PROFESSOR ----------
+    # ---------- PAINEL DE GEOMETRIA + EXPLICAÇÃO DO PROFESSOR ----------
     if (
         st.session_state.estudo_carta_selecionada is not None
         and st.session_state.estudo_cartas
@@ -1992,6 +2080,7 @@ with tab_estudo:
     ):
         carta_idx = st.session_state.estudo_carta_selecionada
         carta_nome = st.session_state.estudo_cartas[carta_idx]
+        linhas_geo = _linhas_geometria(estudo_tiragem, carta_idx, st.session_state.estudo_cartas)
 
         st.markdown("---")
 
@@ -2004,6 +2093,10 @@ with tab_estudo:
             st.markdown(f"#### 🔍 Estudando: **{carta_nome}** (posição {carta_idx + 1})")
             st.caption(f"Tiragem: {estudo_tiragem} · Nível: {estudo_nivel} · Tema: {estudo_tema}")
 
+            with st.expander("📐 Ver conexões geométricas da carta selecionada", expanded=False):
+                for ln_geo in linhas_geo:
+                    st.markdown(ln_geo)
+
             if st.button("📐 Pedir Explicação ao Professor", use_container_width=True, type="secondary"):
                 chave = obter_chave_api()
                 if not chave:
@@ -2011,61 +2104,6 @@ with tab_estudo:
                 else:
                     try:
                         client = genai.Client(api_key=chave)
-
-                        geometria_contexto = {}
-                        if estudo_tiragem.startswith("Mesa Real"):
-                            geometria_contexto = {
-                                "espelhamentos": _calcular_espelhamento(carta_idx, 36),
-                                "cavalos": _calcular_cavalo(carta_idx, 36),
-                                "diagonais": _calcular_diagonais(carta_idx, 36),
-                                "moldura": _calcular_moldura(),
-                            }
-                        elif estudo_tiragem.startswith("Relógio"):
-                            oposicao = _calcular_oposicao_relogio(carta_idx)
-                            geometria_contexto = {
-                                "casa_oposta": oposicao if oposicao >= 0 else None,
-                                "carta_central": (
-                                    st.session_state.estudo_cartas[12]
-                                    if len(st.session_state.estudo_cartas) > 12 else None
-                                ),
-                            }
-                        elif estudo_tiragem.startswith("Mesa de 9"):
-                            geometria_contexto = {
-                                "diagonais": _calcular_diagonais_9cards(carta_idx),
-                                "cruz": _calcular_cruz_9cards(carta_idx),
-                            }
-
-                        nomes_geometria = {
-                            "espelhamentos": "Espelhamentos",
-                            "cavalos": "Movimento do Cavalo",
-                            "diagonais": "Diagonais",
-                            "moldura": "Moldura (cantos)",
-                            "cruz": "Cruz (vertical/horizontal)",
-                        }
-
-                        linhas_geo = []
-                        for chave_geo, valor_geo in geometria_contexto.items():
-                            if chave_geo == "casa_oposta":
-                                if valor_geo is not None and valor_geo >= 0:
-                                    linhas_geo.append(
-                                        f"- Casa oposta (posição {valor_geo + 1}): "
-                                        f"{st.session_state.estudo_cartas[valor_geo]}"
-                                    )
-                            elif chave_geo == "carta_central":
-                                if valor_geo:
-                                    linhas_geo.append(f"- Carta central (CENTRO): {valor_geo}")
-                            else:
-                                if isinstance(valor_geo, list) and valor_geo:
-                                    nomes = [
-                                        f"Pos {i + 1}: {st.session_state.estudo_cartas[i]}"
-                                        for i in valor_geo
-                                        if i < len(st.session_state.estudo_cartas)
-                                    ]
-                                    linhas_geo.append(
-                                        f"- {nomes_geometria.get(chave_geo, chave_geo)}: " + "; ".join(nomes)
-                                    )
-
-                        bloco_geo = "\n".join(linhas_geo) if linhas_geo else "- (sem conexões geométricas específicas para esta tiragem)"
 
                         prompt_estudo = f"""
 DADOS DA SESSÃO DE ESTUDO:
@@ -2077,15 +2115,16 @@ DADOS DA SESSÃO DE ESTUDO:
 CARTAS NA MESA (em ordem de posição):
 {chr(10).join([f"{i+1}. {c}" for i, c in enumerate(st.session_state.estudo_cartas)])}
 
-CONEXÕES GEOMÉTRICAS DA CARTA SELECIONADA:
-{bloco_geo}
+MAPA DE CONEXÕES GEOMÉTRICAS DA CARTA SELECIONADA:
+{chr(10).join(linhas_geo)}
 
-Explique de forma didática:
-1. O significado da carta nesta posição específica
-2. As conexões geométricas listadas (e o porquê de cada uma)
-3. Como cruzar o significado da carta com a posição ocupada
-4. Dicas práticas para memorização
-5. Um exemplo de frase de interpretação
+Com base NESSE mapa, explique na ordem obrigatória:
+1. A carta na posição (e sua casa, no caso da Mesa Real)
+2. Espelhos e oposições
+3. Conexões verticais, horizontais e diagonais
+4. Cavalo, moldura e veredito (quando houver no mapa)
+5. Síntese narrativa em 2-3 frases
+6. Dica didática de memorização
 
 Adapte a profundidade ao nível {estudo_nivel}.
 """
@@ -2135,7 +2174,7 @@ Adapte a profundidade ao nível {estudo_nivel}.
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v4.4 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v4.5 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
