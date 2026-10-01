@@ -72,7 +72,7 @@ ARQ_SIBILLA = Path(__file__).parent / "sibilla.json"
 # PONTE COM O LUMINA (Sala de Estudo interativa em React)
 # Preencha com a URL pública após hospedar (ex.: "https://lumina-1-9-xxx.netlify.app")
 # ou use "http://localhost:3000" para estudos locais. Vazio = ponte desativada.
-LUMINA_URL = ""
+LUMINA_URL = "https://luminacards.netlify.app/"
 
 MANUAIS = {
     "Sibilla Italiana (54 cartas)": "manual-sibilla-completo.html",
