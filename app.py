@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.1
+Auxiliar de Cartomancia & Oráculos v5.2
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -14,9 +14,9 @@ paginação) e TXT, Modo Profissional, Múltiplos Tons, Anti-duplicata, Sorteio 
 Mesa Visual com arte real e medalhões, Retry com backoff (503/429), Painel de
 Estatísticas, Manuais do Terapeuta e ponte para a Sala de Estudo Lumina.
 
-v5.1: NOVA ABA 🐚 BÚZIOS — registro da jogada (16 búzios-cartas com estado e casa),
-cartas de apoio (Zé Pilintra), mesa visual sobre mesa_fundo.jpg, Mentor de Búzios
-com fichas aberto/fechado do buzios.json e trava ética Ifá, histórico + PDF/TXT.
+v5.1: Aba 🐚 Búzios (registro da jogada, mesa visual, Mentor Ifá, histórico, PDF/TXT).
+v5.2: Registro da jogada de búzios SIMPLIFICADO — tabela por número de carta
+      (estado + casa em selects), apoios em mini-tabela, validação automática.
 """
 
 import os
@@ -263,7 +263,7 @@ def _ficha_sibilla(rotulo_carta):
     return SIBILLA_DADOS.get(cid)
 
 # ==========================================
-# v5.1: ORÁCULO BÚZIOS - CARGA DO buzios.json
+# ORÁCULO BÚZIOS - CARGA DO buzios.json
 # ==========================================
 def _carregar_buzios():
     """Carrega as 46 fichas (23 cartas × aberto/fechado) do buzios.json."""
@@ -879,7 +879,7 @@ def obter_imagem_carta(nome_carta, oraculo):
     return None
 
 # ==========================================
-# v5.1: IMAGENS DO BARALHO DE BÚZIOS
+# IMAGENS DO BARALHO DE BÚZIOS
 # ==========================================
 def _abrir_imagem_buzios(nome_base):
     """Tenta abrir assets/cartas/buzios/{nome_base} em várias extensões."""
@@ -1044,7 +1044,7 @@ def sanitizar_titulo_mesa(texto):
     return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
 
 # ==========================================
-# v5.1: MESA VISUAL DOS BÚZIOS (PIL)
+# MESA VISUAL DOS BÚZIOS (PIL)
 # ==========================================
 def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
     """Desenha a mesa circular de búzios com as cartas caídas em cada casa."""
@@ -1067,7 +1067,6 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
     fonte_ent = _fonte(20)
     fonte_leg = _fonte(17)
 
-    # agrupa por casa
     por_casa = {}
     for item in jogada:
         por_casa.setdefault(item["casa"], []).append(item)
@@ -1097,7 +1096,6 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
                 nome = d["entidade"] if d else f"Carta {item['carta']}"
                 draw.text((px, py), nome, font=fonte_leg, fill=(40, 30, 20), anchor="mm")
 
-            # borda de estado + anel do consulente
             cor_estado = (46, 204, 113) if item["estado"] == "Aberto" else (231, 76, 60)
             draw.rounded_rectangle([x0, y0, x1, y1], radius=14, outline=cor_estado, width=5)
             if item["carta"] == 20:
@@ -1109,7 +1107,6 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
             draw.text((px, y1 + 16), nome_curto, font=fonte_ent, fill=(250, 244, 226), anchor="mm")
             draw.ellipse([x1 - 16, y0 + 4, x1 - 2, y0 + 18], fill=cor_estado)
 
-    # faixa de apoios (Zé Pilintra)
     if apoio:
         draw.text((60, L - 150), "APOIO:", font=fonte_ent, fill=(250, 244, 226), anchor="lm")
         for k, item in enumerate(apoio):
@@ -1127,7 +1124,6 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
             cor_estado = (46, 204, 113) if item["estado"] == "Aberto" else (231, 76, 60)
             draw.rounded_rectangle([x0, y0, x1, y1], radius=10, outline=cor_estado, width=4)
 
-    # moldura decorativa (se tiver transparência)
     borda = _abrir_imagem_buzios("mesa_borda")
     if borda is not None and borda.mode in ("RGBA", "LA"):
         borda_rs = borda.convert("RGBA").resize((L, L))
@@ -1137,6 +1133,22 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
     draw.text((L - 40, L - 30), "Mesa de Buzios - Lunara Terapias",
               font=_fonte(18), fill=(210, 195, 160), anchor="rm")
     return img
+
+# ==========================================
+# v5.2: TABELAS BASE DO REGISTRO DE BÚZIOS
+# ==========================================
+def _df_jogada_vazio():
+    return pd.DataFrame({
+        "Carta": [_rotulo_buzios(c) for c in BUZIOS_CARTAS_MESA],
+        "Estado": ["Não caiu"] * len(BUZIOS_CARTAS_MESA),
+        "Casa": ["—"] * len(BUZIOS_CARTAS_MESA),
+    })
+
+def _df_apoio_vazio():
+    return pd.DataFrame({
+        "Apoio": ["—", "—", "—"],
+        "Estado": ["Aberto", "Aberto", "Aberto"],
+    })
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -1164,6 +1176,10 @@ if "buz_resultado" not in st.session_state:
     st.session_state.buz_resultado = None
 if "buz_dados" not in st.session_state:
     st.session_state.buz_dados = None
+if "buz_df" not in st.session_state:
+    st.session_state.buz_df = _df_jogada_vazio()
+if "buz_df_apoio" not in st.session_state:
+    st.session_state.buz_df_apoio = _df_apoio_vazio()
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -1610,7 +1626,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
 # ========================
-# TAB 2 - BÚZIOS (v5.1)
+# TAB 2 - BÚZIOS (v5.2: tabela por número)
 # ========================
 with tab_buzios:
     st.markdown("### 🐚 Mesa de Búzios (Merindilogun · tradição Ifá)")
@@ -1636,59 +1652,56 @@ with tab_buzios:
                 disabled=(tema_buzios != TEMAS_BUZIOS[-1]),
             )
 
-        st.markdown("#### 🎲 Registro da jogada — 16 búzios-cartas")
+        # ---------- Registro da jogada: tabela por número ----------
+        st.markdown("#### 🎲 Registro da jogada — carta por carta, em ordem de número")
         st.caption(
-            "Cada búzio que caiu na mesa vira uma linha: qual carta (orixá/consulente), "
-            "se caiu **aberto** ou **fechado**, e em qual **casa**. A carta 20 (Consulente) "
-            "deve estar entre as 16 — ela marca o ponto do consulente."
+            "Para cada carta que **caiu na mesa**, marque **Aberto** ou **Fechado** e a **casa** onde caiu. "
+            "Deixe **Não caiu** nas demais. Exatamente **16** devem cair, e a **20 · Consulente** "
+            "precisa estar entre elas (ela marca o ponto do consulente). "
+            "Ex.: *01 · Exu — Aberto — Casa 6 · Iemanjá*."
         )
 
-        # ---------- 16 slots ----------
-        for i in range(16):
-            if i % 4 == 0:
-                cols_b = st.columns(4)
-            with cols_b[i % 4]:
-                key_c = f"buz_carta_{i}"
-                key_e = f"buz_estado_{i}"
-                key_h = f"buz_casa_{i}"
+        df_jogada = st.data_editor(
+            st.session_state.buz_df,
+            num_rows="fixed",
+            hide_index=True,
+            use_container_width=True,
+            key="buz_editor",
+            column_config={
+                "Carta": st.column_config.TextColumn("Carta", disabled=True, width="medium"),
+                "Estado": st.column_config.SelectboxColumn(
+                    "Estado",
+                    options=["Não caiu", "Aberto", "Fechado"],
+                    required=True,
+                ),
+                "Casa": st.column_config.SelectboxColumn(
+                    "Casa onde caiu",
+                    options=["—"] + BUZIOS_CASAS,
+                    required=True,
+                ),
+            },
+        )
 
-                # anti-duplicata entre búzios
-                usadas_buz = []
-                for j in range(i):
-                    rot_j = st.session_state.get(f"buz_carta_{j}", PLACEHOLDER_CARTA)
-                    id_j = _id_do_rotulo_buzios(rot_j)
-                    if id_j:
-                        usadas_buz.append(id_j)
-
-                valor_c = st.session_state.get(key_c, PLACEHOLDER_CARTA)
-                id_atual = _id_do_rotulo_buzios(valor_c)
-                if id_atual in usadas_buz:
-                    valor_c = PLACEHOLDER_CARTA
-                    st.session_state[key_c] = valor_c
-
-                opcoes_buz = [PLACEHOLDER_CARTA] + [
-                    _rotulo_buzios(c) for c in BUZIOS_CARTAS_MESA if c not in usadas_buz
-                ]
-                if valor_c not in opcoes_buz:
-                    valor_c = PLACEHOLDER_CARTA
-                    st.session_state[key_c] = valor_c
-
-                st.selectbox(
-                    f"Búzio {i+1} — carta",
-                    options=opcoes_buz,
-                    index=opcoes_buz.index(valor_c),
-                    key=key_c,
-                )
-                st.selectbox(
-                    f"Búzio {i+1} — estado",
+        st.markdown("#### 🃏 Cartas de apoio (Zé Pilintra — fora dos 16)")
+        df_apoio = st.data_editor(
+            st.session_state.buz_df_apoio,
+            num_rows="fixed",
+            hide_index=True,
+            use_container_width=True,
+            key="buz_editor_apoio",
+            column_config={
+                "Apoio": st.column_config.SelectboxColumn(
+                    "Carta de apoio",
+                    options=["—"] + [_rotulo_buzios(c) for c in BUZIOS_CARTAS_APOIO],
+                    required=True,
+                ),
+                "Estado": st.column_config.SelectboxColumn(
+                    "Estado",
                     options=["Aberto", "Fechado"],
-                    key=key_e,
-                )
-                st.selectbox(
-                    f"Búzio {i+1} — casa",
-                    options=BUZIOS_CASAS,
-                    key=key_h,
-                )
+                    required=True,
+                ),
+            },
+        )
 
         col_x1, col_x2 = st.columns(2)
         with col_x1:
@@ -1701,50 +1714,31 @@ with tab_buzios:
 
         if btn_exemplo_buz:
             ids_ex = random.sample([c for c in BUZIOS_CARTAS_MESA if c != 20], 15) + [20]
-            random.shuffle(ids_ex)
-            for i, cid in enumerate(ids_ex):
-                st.session_state[f"buz_carta_{i}"] = _rotulo_buzios(cid)
-                st.session_state[f"buz_estado_{i}"] = random.choice(["Aberto", "Fechado"])
-                st.session_state[f"buz_casa_{i}"] = random.choice(BUZIOS_CASAS)
-            st.session_state["buz_apoio_0"] = _rotulo_buzios(random.choice(BUZIOS_CARTAS_APOIO))
-            st.session_state["buz_apoio_estado_0"] = random.choice(["Aberto", "Fechado"])
+            novo_df = _df_jogada_vazio()
+            for cid in ids_ex:
+                linha = BUZIOS_CARTAS_MESA.index(cid)
+                novo_df.loc[linha, "Estado"] = random.choice(["Aberto", "Fechado"])
+                novo_df.loc[linha, "Casa"] = random.choice(BUZIOS_CASAS)
+            st.session_state.buz_df = novo_df
+            apoio_ex = random.choice(BUZIOS_CARTAS_APOIO)
+            novo_apoio = _df_apoio_vazio()
+            novo_apoio.loc[0, "Apoio"] = _rotulo_buzios(apoio_ex)
+            novo_apoio.loc[0, "Estado"] = random.choice(["Aberto", "Fechado"])
+            st.session_state.buz_df_apoio = novo_apoio
+            st.session_state.pop("buz_editor", None)
+            st.session_state.pop("buz_editor_apoio", None)
             st.session_state["buz_resultado"] = None
             st.session_state["buz_mesa"] = None
             st.rerun()
 
         if btn_limpar_buz:
-            for i in range(16):
-                st.session_state[f"buz_carta_{i}"] = PLACEHOLDER_CARTA
-            for k in range(3):
-                st.session_state[f"buz_apoio_{k}"] = PLACEHOLDER_CARTA
+            st.session_state.buz_df = _df_jogada_vazio()
+            st.session_state.buz_df_apoio = _df_apoio_vazio()
+            st.session_state.pop("buz_editor", None)
+            st.session_state.pop("buz_editor_apoio", None)
             st.session_state["buz_resultado"] = None
             st.session_state["buz_mesa"] = None
             st.rerun()
-
-        # ---------- Apoios (Zé Pilintra) ----------
-        st.markdown("#### 🃏 Cartas de apoio (opcional, fora dos 16)")
-        cols_ap = st.columns(3)
-        apoio_usados = []
-        for k in range(3):
-            with cols_ap[k]:
-                key_ac = f"buz_apoio_{k}"
-                key_ae = f"buz_apoio_estado_{k}"
-                valor_ap = st.session_state.get(key_ac, PLACEHOLDER_CARTA)
-                id_ap = _id_do_rotulo_buzios(valor_ap)
-                if id_ap in apoio_usados:
-                    valor_ap = PLACEHOLDER_CARTA
-                    st.session_state[key_ac] = valor_ap
-                opcoes_ap = [PLACEHOLDER_CARTA] + [
-                    _rotulo_buzios(c) for c in BUZIOS_CARTAS_APOIO if c not in apoio_usados
-                ]
-                if valor_ap not in opcoes_ap:
-                    valor_ap = PLACEHOLDER_CARTA
-                    st.session_state[key_ac] = valor_ap
-                st.selectbox(f"Apoio {k+1}", options=opcoes_ap, index=opcoes_ap.index(valor_ap), key=key_ac)
-                st.selectbox(f"Estado {k+1}", options=["Aberto", "Fechado"], key=key_ae)
-                id_ap = _id_do_rotulo_buzios(st.session_state.get(key_ac, PLACEHOLDER_CARTA))
-                if id_ap:
-                    apoio_usados.append(id_ap)
 
         st.markdown("---")
 
@@ -1754,29 +1748,33 @@ with tab_buzios:
         with col_a2:
             btn_interp_buz = st.button("🐚 Interpretar Jogada", type="primary", use_container_width=True)
 
-        # ---------- montagem da jogada ----------
+        # ---------- montagem da jogada a partir da tabela ----------
         jogada_buz = []
-        for i in range(16):
-            cid = _id_do_rotulo_buzios(st.session_state.get(f"buz_carta_{i}", PLACEHOLDER_CARTA))
-            if cid:
+        casas_faltando = []
+        for idx_linha, row in df_jogada.iterrows():
+            if row["Estado"] in ("Aberto", "Fechado"):
+                cid = BUZIOS_CARTAS_MESA[idx_linha]
+                if row["Casa"] == "—":
+                    casas_faltando.append(_rotulo_buzios(cid))
+                    continue
                 jogada_buz.append({
                     "carta": cid,
-                    "estado": st.session_state.get(f"buz_estado_{i}", "Aberto"),
-                    "casa": BUZIOS_CASAS.index(st.session_state.get(f"buz_casa_{i}", BUZIOS_CASAS[0])),
+                    "estado": row["Estado"],
+                    "casa": BUZIOS_CASAS.index(row["Casa"]),
                 })
 
         apoio_buz = []
-        for k in range(3):
-            cid = _id_do_rotulo_buzios(st.session_state.get(f"buz_apoio_{k}", PLACEHOLDER_CARTA))
-            if cid:
-                apoio_buz.append({
-                    "carta": cid,
-                    "estado": st.session_state.get(f"buz_apoio_estado_{k}", "Aberto"),
-                })
+        vistos_apoio = set()
+        for _, row in df_apoio.iterrows():
+            if row["Apoio"] != "—":
+                cid = _id_do_rotulo_buzios(row["Apoio"])
+                if cid and cid not in vistos_apoio:
+                    vistos_apoio.add(cid)
+                    apoio_buz.append({"carta": cid, "estado": row["Estado"]})
 
         if btn_mesa_buz:
             if len(jogada_buz) == 0:
-                st.warning("Registre ao menos um búzio antes de gerar a mesa.")
+                st.warning("Registre ao menos um búzio caído antes de gerar a mesa.")
             else:
                 st.session_state["buz_mesa"] = gerar_imagem_mesa_buzios(
                     jogada_buz, apoio_buz, tema_buzios
@@ -1787,11 +1785,19 @@ with tab_buzios:
 
         if btn_interp_buz:
             erros_buz = []
+            if casas_faltando:
+                erros_buz.append(
+                    "Defina a casa de: " + ", ".join(casas_faltando) + "."
+                )
             if len(jogada_buz) != 16:
-                erros_buz.append(f"A jogada precisa dos 16 búzios registrados (atualmente: {len(jogada_buz)}).")
+                erros_buz.append(
+                    f"A jogada precisa de exatamente 16 búzios caídos (atualmente: {len(jogada_buz)})."
+                )
             ids_jogados = [j["carta"] for j in jogada_buz]
             if 20 not in ids_jogados:
-                erros_buz.append("A carta 20 (Consulente) precisa estar entre os 16 búzios — ela marca o ponto do consulente.")
+                erros_buz.append(
+                    "A carta 20 (Consulente) precisa estar entre as 16 caídas — ela marca o ponto do consulente."
+                )
             chave_buz = obter_chave_api()
             if not chave_buz:
                 erros_buz.append("Chave de API não configurada (secrets.toml / Secrets do Cloud).")
@@ -1800,7 +1806,6 @@ with tab_buzios:
                 for eb in erros_buz:
                     st.error(f"⚠️ {eb}")
             else:
-                # clima
                 tot_ab = sum(1 for j in jogada_buz if j["estado"] == "Aberto")
                 tot_fe = 16 - tot_ab
                 cont_casa = Counter(j["casa"] for j in jogada_buz)
@@ -1830,9 +1835,7 @@ with tab_buzios:
                         f"({ficha.get('palavra', '')}): \"{ficha.get('mensagem', '')}\""
                     )
 
-                d_cons = BUZIOS_DADOS.get(20, {})
                 f_cons = _ficha_buzios(20, consul["estado"]) or {}
-
                 tema_final = tema_livre_buzios.strip() if tema_buzios == TEMAS_BUZIOS[-1] else tema_buzios
 
                 prompt_buz = f"""
@@ -2219,7 +2222,7 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.1 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v5.2 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
