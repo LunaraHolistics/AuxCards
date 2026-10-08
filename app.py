@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.2
+Auxiliar de Cartomancia & Oráculos v5.3
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -14,9 +14,10 @@ paginação) e TXT, Modo Profissional, Múltiplos Tons, Anti-duplicata, Sorteio 
 Mesa Visual com arte real e medalhões, Retry com backoff (503/429), Painel de
 Estatísticas, Manuais do Terapeuta e ponte para a Sala de Estudo Lumina.
 
-v5.1: Aba 🐚 Búzios (registro da jogada, mesa visual, Mentor Ifá, histórico, PDF/TXT).
-v5.2: Registro da jogada de búzios SIMPLIFICADO — tabela por número de carta
-      (estado + casa em selects), apoios em mini-tabela, validação automática.
+v5.2: Registro da jogada de búzios em tabela por número (estado + casa).
+v5.3: Búzios com REGRA DE JOGADA configurável (16 ou 20 búzios caídos),
+      mesa visual exibida a 50% na tela e, no PDF, em 12x12 cm centralizada
+      no topo da página (demais oráculos mantêm mesa paisagem em página cheia).
 """
 
 import os
@@ -86,6 +87,11 @@ TEMAS_BUZIOS = [
     "Trabalho & Prosperidade",
     "Espiritual & Proteção",
     "Outro (descrever)",
+]
+
+REGRAS_BUZIOS = [
+    "16 búzios caem",
+    "20 búzios caem (todos + consulente)",
 ]
 
 # ==========================================
@@ -346,7 +352,7 @@ Você é um **Mentor de Búzios (Merindilogun, tradição inspirada em Ifá)**, 
 A MESA (padrão Lunara Terapias):
 - 7 casas em círculo (sentido horário, do topo): 1 Xangô (justiça, trabalho, verdade), 2 Exu (caminhos, escolhas, movimento), 3 Ogun (abertura prática, conquista), 4 Oxóssi (fartura, prosperidade), 5 Oxalá (fé, paz, destino), 6 Iemanjá (família, lar, emoções), 7 Ossain (cura, ervas, segredos).
 - MOEDA (centro): o presente, o coração do ciclo.
-- 16 búzios-cartas caem nas casas, cada um ABERTO ou FECHADO.
+- Os búzios-cartas caem nas casas, cada um ABERTO ou FECHADO (a regra da jogada — 16 ou 20 caídos — é informada pelo sistema).
 
 LEITURA DOS ESTADOS:
 - ABERTO: a força fala a favor; caminho iluminado; use a palavra-chave e a mensagem ABERTA da ficha.
@@ -360,7 +366,7 @@ PONTO DO CONSULENTE:
 - Cartas caídas na MESMA casa do consulente falam diretamente com ele.
 
 CARTAS DE APOIO (Zé Pilintra):
-- Não entram na contagem dos 16; são conselhos laterais do mestre malandro: use a ficha para fechar a orientação com alerta, jeito ou bênção.
+- Não entram na contagem dos búzios caídos; são conselhos laterais do mestre malandro: use a ficha para fechar a orientação com alerta, jeito ou bênção.
 
 LIMITES ÉTICOS INEGOCIÁVEIS:
 - Ferramenta de estudo e apoio: nunca substitui sacerdote iniciado (babalorixá/ialorixá/babalawo).
@@ -624,8 +630,11 @@ class _PDFOraculo(FPDF):
         self.cell(0, 5, f"Pagina {self.page_no()}/{{nb}}", align="C")
 
 
-def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None, imagem_mesa=None):
-    """Gera um PDF formatado da leitura oracular, com mesa visual opcional."""
+def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None,
+                      imagem_mesa=None, mesa_largura_mm=180.0):
+    """Gera um PDF formatado da leitura oracular, com mesa visual opcional.
+    mesa_largura_mm: 180 = página cheia (mesas paisagem); 120 = representação
+    compacta centralizada no topo (mesa quadrada dos Búzios)."""
     pdf = _PDFOraculo()
     pdf.alias_nb_pages()
     pdf.add_page()
@@ -712,12 +721,14 @@ def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=N
         buf = BytesIO()
         imagem_mesa.save(buf, format="PNG")
         buf.seek(0)
-        w_mm = 180.0
+        w_mm = mesa_largura_mm
         h_mm = w_mm * imagem_mesa.height / imagem_mesa.width
-        pdf.image(buf, x=15, y=pdf.get_y() + 2, w=w_mm, h=h_mm)
-        pdf.ln(h_mm + 10)
+        x_mm = (210.0 - w_mm) / 2.0
+        pdf.image(buf, x=x_mm, y=pdf.get_y() + 2, w=w_mm, h=h_mm)
+        pdf.ln(h_mm + 8)
         pdf.set_font("Helvetica", "I", 9)
         pdf.cell(0, 5, "Mesa gerada automaticamente pelo sistema.", ln=True, align="C")
+        pdf.ln(6)
 
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(0, 8, "Interpretacao Oracular", ln=True)
@@ -1135,7 +1146,7 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
     return img
 
 # ==========================================
-# v5.2: TABELAS BASE DO REGISTRO DE BÚZIOS
+# TABELAS BASE DO REGISTRO DE BÚZIOS
 # ==========================================
 def _df_jogada_vazio():
     return pd.DataFrame({
@@ -1297,7 +1308,7 @@ with tab_nova:
             - **Sintaxe do Lenormand:** Cartas lidas em duplas/tríades (Substantivo + Adjetivo).
             - **Tarô Estruturado:** Distinção entre Arcanos Maiores e Menores.
             - **Sibilla Italiana:** 54 cartas com polaridade e fichas técnicas; cenas cotidianas lidas como narrativa.
-            - **Búzios (Ifá):** 16 búzios-cartas em 7 casas + Moeda; aberto fala, fechado recolhe (aba 🐚).
+            - **Búzios (Ifá):** búzios-cartas em 7 casas + Moeda; aberto fala, fechado recolhe (aba 🐚).
             - **Regra Estrita para Magia:** NUNCA afirma demandas por uma carta isolada. Exige 2-3 cartas de sombra pesada alinhadas.
             - **Livre-Arbítrio Soberano:** O oráculo orienta, preservando a autonomia do consulente.
             """
@@ -1626,7 +1637,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
 # ========================
-# TAB 2 - BÚZIOS (v5.2: tabela por número)
+# TAB 2 - BÚZIOS (v5.3: regra configurável + mesa compacta)
 # ========================
 with tab_buzios:
     st.markdown("### 🐚 Mesa de Búzios (Merindilogun · tradição Ifá)")
@@ -1652,12 +1663,32 @@ with tab_buzios:
                 disabled=(tema_buzios != TEMAS_BUZIOS[-1]),
             )
 
+        # ---------- Regra da jogada (v5.3) ----------
+        col_r1, col_r2 = st.columns([2, 3])
+        with col_r1:
+            regra_buzios = st.selectbox(
+                "Regra da jogada",
+                options=REGRAS_BUZIOS,
+                index=0,
+                key="buz_regra",
+                help=(
+                    "16 caídos = clássico Merindilogun (4 cartas ficam de fora por jogada). "
+                    "20 caídos = todos os orixás + consulente caem sempre; mudam casa e estado."
+                ),
+            )
+        esperados_buz = 16 if regra_buzios.startswith("16") else 20
+        with col_r2:
+            st.caption(
+                f"Validação ativa: exatamente **{esperados_buz}** cartas marcadas como "
+                "Aberto/Fechado, com casa definida e a **20 · Consulente** entre elas."
+            )
+
         # ---------- Registro da jogada: tabela por número ----------
         st.markdown("#### 🎲 Registro da jogada — carta por carta, em ordem de número")
         st.caption(
-            "Para cada carta que **caiu na mesa**, marque **Aberto** ou **Fechado** e a **casa** onde caiu. "
-            "Deixe **Não caiu** nas demais. Exatamente **16** devem cair, e a **20 · Consulente** "
-            "precisa estar entre elas (ela marca o ponto do consulente). "
+            f"Para cada carta que **caiu na mesa**, marque **Aberto** ou **Fechado** e a **casa** onde caiu. "
+            f"Deixe **Não caiu** nas demais. Pela regra escolhida, exatamente **{esperados_buz}** devem cair, "
+            "e a **20 · Consulente** precisa estar entre elas (ela marca o ponto do consulente). "
             "Ex.: *01 · Exu — Aberto — Casa 6 · Iemanjá*."
         )
 
@@ -1682,7 +1713,7 @@ with tab_buzios:
             },
         )
 
-        st.markdown("#### 🃏 Cartas de apoio (Zé Pilintra — fora dos 16)")
+        st.markdown("#### 🃏 Cartas de apoio (Zé Pilintra — fora da contagem)")
         df_apoio = st.data_editor(
             st.session_state.buz_df_apoio,
             num_rows="fixed",
@@ -1713,7 +1744,10 @@ with tab_buzios:
             btn_limpar_buz = st.button("🧹 Limpar jogada", use_container_width=True)
 
         if btn_exemplo_buz:
-            ids_ex = random.sample([c for c in BUZIOS_CARTAS_MESA if c != 20], 15) + [20]
+            if esperados_buz == 16:
+                ids_ex = random.sample([c for c in BUZIOS_CARTAS_MESA if c != 20], 15) + [20]
+            else:
+                ids_ex = list(BUZIOS_CARTAS_MESA)
             novo_df = _df_jogada_vazio()
             for cid in ids_ex:
                 linha = BUZIOS_CARTAS_MESA.index(cid)
@@ -1781,7 +1815,12 @@ with tab_buzios:
                 )
 
         if st.session_state.get("buz_mesa") is not None:
-            st.image(st.session_state["buz_mesa"], caption="🐚 Mesa da jogada", use_container_width=True)
+            # v5.3: exibição compacta (50% do canvas) para não dominar a tela
+            st.image(
+                st.session_state["buz_mesa"],
+                caption="🐚 Mesa da jogada (representação compacta)",
+                width=750,
+            )
 
         if btn_interp_buz:
             erros_buz = []
@@ -1789,14 +1828,15 @@ with tab_buzios:
                 erros_buz.append(
                     "Defina a casa de: " + ", ".join(casas_faltando) + "."
                 )
-            if len(jogada_buz) != 16:
+            if len(jogada_buz) != esperados_buz:
                 erros_buz.append(
-                    f"A jogada precisa de exatamente 16 búzios caídos (atualmente: {len(jogada_buz)})."
+                    f"Pela regra escolhida ({regra_buzios}), a jogada precisa de exatamente "
+                    f"{esperados_buz} búzios caídos (atualmente: {len(jogada_buz)})."
                 )
             ids_jogados = [j["carta"] for j in jogada_buz]
             if 20 not in ids_jogados:
                 erros_buz.append(
-                    "A carta 20 (Consulente) precisa estar entre as 16 caídas — ela marca o ponto do consulente."
+                    "A carta 20 (Consulente) precisa estar entre as caídas — ela marca o ponto do consulente."
                 )
             chave_buz = obter_chave_api()
             if not chave_buz:
@@ -1807,7 +1847,7 @@ with tab_buzios:
                     st.error(f"⚠️ {eb}")
             else:
                 tot_ab = sum(1 for j in jogada_buz if j["estado"] == "Aberto")
-                tot_fe = 16 - tot_ab
+                tot_fe = len(jogada_buz) - tot_ab
                 cont_casa = Counter(j["casa"] for j in jogada_buz)
                 vazias = [idx for idx in range(8) if idx not in cont_casa]
                 consul = next(j for j in jogada_buz if j["carta"] == 20)
@@ -1840,8 +1880,9 @@ with tab_buzios:
 
                 prompt_buz = f"""
 TEMA DA LEITURA: {tema_final}
+REGRA DA JOGADA: {regra_buzios} ({len(jogada_buz)} búzios caídos).
 
-DISTRIBUIÇÃO DOS 16 BÚZIOS NA MESA:
+DISTRIBUIÇÃO DOS BÚZIOS NA MESA:
 {chr(10).join(linhas_casa)}
 
 CASAS SEM BÚZIOS (domínios adormecidos): {', '.join(BUZIOS_CASAS[i] for i in vazias) if vazias else 'nenhuma'}
@@ -1851,7 +1892,7 @@ CLIMA: {tot_ab} abertos / {tot_fe} fechados.
 PONTO DO CONSULENTE: a carta Consulente caiu em {BUZIOS_CASAS[consul['casa']]}, {consul['estado'].upper()}
 — ficha: {f_cons.get('palavra', '')}: "{f_cons.get('mensagem', '')}"
 
-CARTAS DE APOIO (Zé Pilintra, fora dos 16):
+CARTAS DE APOIO (Zé Pilintra, fora da contagem):
 {chr(10).join(linhas_apoio) if linhas_apoio else '(nenhuma carta de apoio tirada)'}
 
 Interprete a jogada conforme as regras da system instruction, cruzando clima, casas,
@@ -1890,7 +1931,7 @@ ponto do consulente e apoios com o tema perguntado.
                             "signo_consulente": signo_consulente,
                             "modo_atendimento": modo_atendimento,
                             "oraculo": "Búzios (Ifá)",
-                            "metodo": f"Mesa de Búzios · {tema_final}",
+                            "metodo": f"Mesa de Búzios ({regra_buzios}) · {tema_final}",
                             "tom_leitura": "Mentor de Búzios",
                             "pergunta": tema_final,
                             "cartas": cartas_hist,
@@ -1928,11 +1969,13 @@ ponto do consulente e apoios com o tema perguntado.
                 )
             with col_e2:
                 try:
+                    # v5.3: mesa quadrada dos búzios em 12x12 cm no topo da página
                     pdf_buz = gerar_pdf_leitura(
                         dados_leitura=st.session_state["buz_dados"],
                         modo_profissional=modo_profissional,
                         dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
                         imagem_mesa=st.session_state.get("buz_mesa"),
+                        mesa_largura_mm=120.0,
                     )
                     st.download_button(
                         "📕 Baixar relatório (.pdf)",
@@ -2222,7 +2265,7 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.2 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v5.3 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
