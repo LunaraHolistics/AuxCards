@@ -1,22 +1,22 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.0
+Auxiliar de Cartomancia & Oráculos v5.1
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
-Recursos:
-- 3 oráculos: Baralho Cigano (36), Tarô Tradicional (78), Sibilla Italiana (54)
-- Histórico SQLite com Análise Comparativa Temporal (⏳ Reavaliar)
-- Exportação PDF (com mesa visual automática e paginação) e TXT
-- Modo Profissional (cabeçalho do oraculista), Múltiplos Tons de Leitura
-- Anti-duplicata, Sorteio Digital, Mesa Visual com arte real e medalhões
-- Retry automático com backoff para erros transitórios (503/429/5xx)
-- Fichas técnicas do Sibilla (sibilla.json) enriquecem o prompt do Gemini
-- Painel de Estatísticas e Manuais do Terapeuta (HTML embed + download)
-- Abas: Nova Leitura, Histórico, Estatísticas, Manuais
+Oráculos suportados:
+- Baralho Cigano (Lenormand, 36 cartas)
+- Tarô Tradicional (78 cartas)
+- Sibilla Italiana (54 cartas, fichas via sibilla.json)
+- Búzios (Merindilogun, tradição Ifá, 23 cartas aberto/fechado via buzios.json)
 
-v5.0: ESTUDO NATIVO REMOVIDO — o Lumina (React, hospedado) é agora a Sala de
-Estudo oficial do ecossistema. A sidebar ganha a ponte "🎪 Abrir Sala de Estudo
-Lumina" via constante LUMINA_URL (deixe vazia para desativar).
+Recursos: Histórico SQLite com Comparativa Temporal, Exportação PDF (mesa automática,
+paginação) e TXT, Modo Profissional, Múltiplos Tons, Anti-duplicata, Sorteio Digital,
+Mesa Visual com arte real e medalhões, Retry com backoff (503/429), Painel de
+Estatísticas, Manuais do Terapeuta e ponte para a Sala de Estudo Lumina.
+
+v5.1: NOVA ABA 🐚 BÚZIOS — registro da jogada (16 búzios-cartas com estado e casa),
+cartas de apoio (Zé Pilintra), mesa visual sobre mesa_fundo.jpg, Mentor de Búzios
+com fichas aberto/fechado do buzios.json e trava ética Ifá, histórico + PDF/TXT.
 """
 
 import os
@@ -68,10 +68,9 @@ PLACEHOLDER_CARTA = "-- Selecione uma carta --"
 PASTA_CARTAS = Path(__file__).parent / "assets" / "cartas"
 PASTA_MEDALHOES = Path(__file__).parent / "assets" / "medalhoes"
 ARQ_SIBILLA = Path(__file__).parent / "sibilla.json"
+ARQ_BUZIOS = Path(__file__).parent / "buzios.json"
 
 # PONTE COM O LUMINA (Sala de Estudo interativa em React)
-# Preencha com a URL pública após hospedar (ex.: "https://lumina-1-9-xxx.netlify.app")
-# ou use "http://localhost:3000" para estudos locais. Vazio = ponte desativada.
 LUMINA_URL = "https://luminacards.netlify.app/"
 
 MANUAIS = {
@@ -79,6 +78,15 @@ MANUAIS = {
     "Tarô Tradicional (78 cartas)": "manual-taro-completo.html",
     "Baralho Cigano (36 cartas)": "manual-cigano-completo.html",
 }
+
+TEMAS_BUZIOS = [
+    "Geral do mês",
+    "Amor & Relacionamentos",
+    "Saúde & Vitalidade",
+    "Trabalho & Prosperidade",
+    "Espiritual & Proteção",
+    "Outro (descrever)",
+]
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -98,21 +106,18 @@ def obter_chave_api():
 # UTILITÁRIOS DE TEXTO
 # ==========================================
 def _slug(texto):
-    """Gera nome de arquivo seguro (sem acentos, espaços ou símbolos)."""
     txt = unicodedata.normalize("NFD", str(texto or ""))
     txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     txt = re.sub(r"[^A-Za-z0-9]+", "_", txt).strip("_").lower()
     return txt or "pessoal"
 
 def _carimbo(data_hora):
-    """Converte 'dd/mm/AAAA HH:MM' em carimbo compacto para nomes de arquivo."""
     return re.sub(r"[^0-9]", "", str(data_hora))[:12]
 
 # ==========================================
 # RESILIÊNCIA - RETRY COM BACKOFF
 # ==========================================
 def eh_erroro_transitorio(exc):
-    """Detecta erros de capacidade/disponibilidade."""
     txt = str(exc).upper()
     marcadores = (
         "503", "429", "500", "502", "504",
@@ -122,7 +127,6 @@ def eh_erroro_transitorio(exc):
     return any(m in txt for m in marcadores)
 
 def chamar_gemini(client, contents, config, ao_tentar=None):
-    """Chama o Gemini com novas tentativas automáticas."""
     ultima_exc = None
     for tentativa in range(1, MAX_TENTATIVAS + 1):
         if ao_tentar:
@@ -155,7 +159,6 @@ def chamar_gemini(client, contents, config, ao_tentar=None):
 # BANCO DE DADOS - HISTÓRICO DE LEITURAS
 # ==========================================
 def init_db():
-    """Inicializa o banco SQLite."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
@@ -177,7 +180,6 @@ def init_db():
     conn.close()
 
 def save_reading(data):
-    """Salva uma nova leitura no histórico."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
@@ -195,7 +197,6 @@ def save_reading(data):
     conn.close()
 
 def list_readings():
-    """Lista todas as leituras salvas."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
@@ -207,7 +208,6 @@ def list_readings():
     return rows
 
 def load_reading(reading_id):
-    """Carrega uma leitura específica pelo ID."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("SELECT * FROM leituras WHERE id = ?", (reading_id,))
@@ -224,7 +224,6 @@ def load_reading(reading_id):
     return None
 
 def delete_reading(reading_id):
-    """Remove uma leitura do histórico."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("DELETE FROM leituras WHERE id = ?", (reading_id,))
@@ -237,7 +236,6 @@ init_db()
 # ORÁCULO SIBILLA - CARGA DO sibilla.json
 # ==========================================
 def _carregar_sibilla():
-    """Carrega as fichas técnicas das 54 cartas a partir de sibilla.json."""
     try:
         with open(ARQ_SIBILLA, "r", encoding="utf-8") as f:
             dados = json.load(f)
@@ -246,7 +244,6 @@ def _carregar_sibilla():
         return {}
 
 def _rotulo_sibilla(d):
-    """Monta o rótulo exibido no menu: '01. DESPRAZER (Il Dispiacere) — A♠'."""
     base = f"{int(d['id']):02d}. {d.get('titulo', '')}"
     carta = str(d.get("carta", ""))
     if carta and not carta.isdigit():
@@ -259,12 +256,126 @@ CARTAS_SIBILLA = [PLACEHOLDER_CARTA] + [
 ]
 
 def _ficha_sibilla(rotulo_carta):
-    """Retorna a ficha técnica (dict) da carta Sibilla pelo rótulo do menu."""
     try:
         cid = int(str(rotulo_carta).split(".")[0])
     except Exception:
         return None
     return SIBILLA_DADOS.get(cid)
+
+# ==========================================
+# v5.1: ORÁCULO BÚZIOS - CARGA DO buzios.json
+# ==========================================
+def _carregar_buzios():
+    """Carrega as 46 fichas (23 cartas × aberto/fechado) do buzios.json."""
+    try:
+        with open(ARQ_BUZIOS, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+    except Exception:
+        return {}
+    mapa = {}
+    for item in dados:
+        try:
+            cid = int(item["id"])
+        except Exception:
+            continue
+        entrada = mapa.setdefault(cid, {
+            "entidade": item.get("entidade", ""),
+            "tipo": item.get("tipo", "orixa"),
+        })
+        estado = item.get("estado", "aberto")
+        entrada[estado] = {
+            "palavra": item.get("palavra_chave", ""),
+            "mensagem": item.get("mensagem", ""),
+        }
+    return mapa
+
+BUZIOS_DADOS = _carregar_buzios()
+BUZIOS_CARTAS_MESA = [
+    cid for cid, d in sorted(BUZIOS_DADOS.items())
+    if d.get("tipo") in ("orixa", "consulente")
+]
+BUZIOS_CARTAS_APOIO = [
+    cid for cid, d in sorted(BUZIOS_DADOS.items()) if d.get("tipo") == "apoio"
+]
+
+BUZIOS_CASAS = [
+    "Casa 1 · Xangô",
+    "Casa 2 · Exu",
+    "Casa 3 · Ogun",
+    "Casa 4 · Oxóssi",
+    "Casa 5 · Oxalá",
+    "Casa 6 · Iemanjá",
+    "Casa 7 · Ossain",
+    "Moeda (centro)",
+]
+
+# Posições (x, y) das casas na mesa visual 1500x1500 (círculo horário + centro)
+_BUZIOS_POSICOES = [
+    (750, 300),    # Casa 1 Xangô (topo)
+    (1120, 470),   # Casa 2 Exu
+    (1230, 830),   # Casa 3 Ogun
+    (1000, 1160),  # Casa 4 Oxóssi
+    (500, 1160),   # Casa 5 Oxalá
+    (270, 830),    # Casa 6 Iemanjá
+    (380, 470),    # Casa 7 Ossain
+    (750, 760),    # Moeda (centro)
+]
+
+def _rotulo_buzios(cid):
+    d = BUZIOS_DADOS.get(cid)
+    if not d:
+        return f"{cid:02d}"
+    return f"{cid:02d} · {d['entidade']}"
+
+def _id_do_rotulo_buzios(rotulo):
+    try:
+        return int(str(rotulo).split(" ")[0])
+    except Exception:
+        return None
+
+def _ficha_buzios(cid, estado):
+    d = BUZIOS_DADOS.get(cid)
+    if not d:
+        return None
+    chave = "aberto" if str(estado).lower().startswith("ab") else "fechado"
+    return d.get(chave)
+
+SYSTEM_INSTRUCTION_BUZIOS = """
+Você é um **Mentor de Búzios (Merindilogun, tradição inspirada em Ifá)**, auxiliando um terapeuta humano em sessão.
+
+A MESA (padrão Lunara Terapias):
+- 7 casas em círculo (sentido horário, do topo): 1 Xangô (justiça, trabalho, verdade), 2 Exu (caminhos, escolhas, movimento), 3 Ogun (abertura prática, conquista), 4 Oxóssi (fartura, prosperidade), 5 Oxalá (fé, paz, destino), 6 Iemanjá (família, lar, emoções), 7 Ossain (cura, ervas, segredos).
+- MOEDA (centro): o presente, o coração do ciclo.
+- 16 búzios-cartas caem nas casas, cada um ABERTO ou FECHADO.
+
+LEITURA DOS ESTADOS:
+- ABERTO: a força fala a favor; caminho iluminado; use a palavra-chave e a mensagem ABERTA da ficha.
+- FECHADO: a força recolhe, alerta ou pede preparo; use a palavra-chave e a mensagem FECHADA da ficha.
+- Casa com vários búzios: o orixá da casa "recebe visitas" — cruze o domínio da casa com as entidades caídas nela.
+- Casa vazia: domínio adormecido no ciclo (não é negativo; é o que não está em jogo).
+- CLIMA: maioria aberta = ciclo expansivo; maioria fechada = ciclo de recolhimento e preparo.
+
+PONTO DO CONSULENTE:
+- A casa (ou a Moeda) onde caiu a carta 20 (Consulente) mostra onde a pessoa está energeticamente; aberto = visível/ativo; fechado = introspectivo/travado/protegido.
+- Cartas caídas na MESMA casa do consulente falam diretamente com ele.
+
+CARTAS DE APOIO (Zé Pilintra):
+- Não entram na contagem dos 16; são conselhos laterais do mestre malandro: use a ficha para fechar a orientação com alerta, jeito ou bênção.
+
+LIMITES ÉTICOS INEGOCIÁVEIS:
+- Ferramenta de estudo e apoio: nunca substitui sacerdote iniciado (babalorixá/ialorixá/babalawo).
+- NÃO profetize morte, diagnóstico médico, sentença judicial ou catástrofe; descreva processos e encaminhe ao profissional.
+- Respeite o livre-arbítrio; linguagem de tendência, nunca de sentença.
+- Use EXATAMENTE as fichas fornecidas (palavra-chave e mensagem) como alicerce; não invente quantidades nem casas.
+
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA (Markdown):
+### 🐚 1. Clima da Jogada (abertos × fechados)
+### 🏛️ 2. As Casas que Falam (orixás ativados e o que dizem)
+### 🌑 3. O que o Silêncio Guarda (casas vazias e fechamentos)
+### 🧭 4. O Ponto do Consulente
+### 🎯 5. Resposta ao Tema Perguntado
+### 🕊️ 6. Orientações e Cuidados (com o recado dos apoios, se houver)
+"""
 
 # ==========================================
 # BANCO DE DADOS DE CARTAS E POSIÇÕES
@@ -480,8 +591,8 @@ def sanitizar_texto_pdf(texto):
         '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
         '🗑️': '[LIXO]', '🧹': '[LIMPEZA]', '🎓': '[ESTUDO]',
         '📐': '[GEOMETRIA]', '🧠': '[MENTE]', '🪞': '[ESPELHO]',
-        '🐴': '[CAVALO]', '🧵': '[TRAMA]', '🏛️': '[TEMPLO]',
-        '🌦️': '[CLIMA]', '🎪': '[SALA]',
+        '🐴': '[CAVALO]', '🧵': '[TRAMA]', '🏛️': '[CASAS]',
+        '🐚': '[BUZIOS]', '🌑': '[SILENCIO]', '🎪': '[SALA]',
         '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
@@ -657,19 +768,16 @@ _RANK = {
 _PALAVRAS_BARALHO = ("cigano", "lenormand", "taro", "tarot", "sibilla", "sibila")
 
 def _normalizar_texto(texto):
-    """Remove acentos, pontuação e espaços."""
     txt = unicodedata.normalize("NFD", str(texto))
     txt = "".join(ch for ch in txt if unicodedata.category(ch) != "Mn")
     txt = txt.lower()
     return re.sub(r"[^a-z0-9]+", "", txt)
 
 def _tokens(stem):
-    """Quebra o nome do arquivo em tokens normalizados."""
     partes = re.split(r"[^0-9A-Za-zÀ-ÖØ-öø-ÿ]+", str(stem))
     return [ _normalizar_texto(p) for p in partes if _normalizar_texto(p) ]
 
 def _chaves_para_arquivo(stem):
-    """Gera as chaves de busca que um arquivo de imagem atende."""
     toks = _tokens(stem)
     if not toks:
         return []
@@ -680,7 +788,6 @@ def _chaves_para_arquivo(stem):
     return chaves
 
 def _chaves_para_carta(nome):
-    """Gera as chaves de busca que um rótulo de carta produz, em prioridade."""
     chaves = []
     for segmento in str(nome).split("/"):
         tokens = [t for t in segmento.split() if t]
@@ -732,7 +839,6 @@ def _chaves_para_carta(nome):
 
 @st.cache_data(show_spinner=False)
 def _mapa_imagens_cartas():
-    """Varre assets/cartas/ e indexa imagens por todas as chaves possíveis."""
     indice = {}
     if not PASTA_CARTAS.exists():
         return indice
@@ -744,11 +850,9 @@ def _mapa_imagens_cartas():
     return indice
 
 def _pasta_neutra(nome_pasta):
-    """Pasta sem indicação de baralho serve a qualquer oráculo."""
     return not any(palavra in nome_pasta for palavra in _PALAVRAS_BARALHO)
 
 def obter_imagem_carta(nome_carta, oraculo):
-    """Retorna a imagem PIL da carta, priorizando a pasta do baralho certo."""
     if not nome_carta or nome_carta == PLACEHOLDER_CARTA:
         return None
     indice = _mapa_imagens_cartas()
@@ -775,11 +879,32 @@ def obter_imagem_carta(nome_carta, oraculo):
     return None
 
 # ==========================================
+# v5.1: IMAGENS DO BARALHO DE BÚZIOS
+# ==========================================
+def _abrir_imagem_buzios(nome_base):
+    """Tenta abrir assets/cartas/buzios/{nome_base} em várias extensões."""
+    pasta = PASTA_CARTAS / "buzios"
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        caminho = pasta / f"{nome_base}{ext}"
+        if caminho.exists():
+            try:
+                return Image.open(caminho)
+            except Exception:
+                continue
+    return None
+
+def _imagem_carta_buzios(cid, estado):
+    sufixo = "aberto" if str(estado).lower().startswith("ab") else "fechado"
+    arte = _abrir_imagem_buzios(f"{cid:02d}_{sufixo}")
+    if arte is not None:
+        return arte.convert("RGB")
+    return None
+
+# ==========================================
 # MEDALHÕES DECORATIVOS (assets/medalhoes/)
 # ==========================================
 @st.cache_data(show_spinner=False)
 def _lista_medalhoes():
-    """Lista imagens de medalhões disponíveis, em ordem alfabética."""
     if not PASTA_MEDALHOES.exists():
         return []
     return [
@@ -788,7 +913,6 @@ def _lista_medalhoes():
     ]
 
 def _medalhao_imagem(indice):
-    """Retorna o medalhão (RGBA) para a posição, ciclando a lista."""
     lista = _lista_medalhoes()
     if not lista:
         return None
@@ -801,14 +925,12 @@ def _medalhao_imagem(indice):
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
 # ==========================================
 def _fonte(tamanho):
-    """Retorna a fonte padrão do Pillow."""
     try:
         return ImageFont.load_default(size=tamanho)
     except Exception:
         return ImageFont.load_default()
 
 def _layout_mesa(metodo, n_posicoes):
-    """Define os centros (x, y) e o tamanho (w, h) das cartas."""
     if metodo == "Linha de 3 Cartas" and n_posicoes == 3:
         return [(500, 540), (800, 540), (1100, 540)], (240, 380)
     if metodo == "Linha de 5 Cartas" and n_posicoes == 5:
@@ -854,7 +976,6 @@ def _layout_mesa(metodo, n_posicoes):
     return centros, (card_w, card_h)
 
 def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
-    """Desenha a mesa virtual; usa arte real das cartas e medalhões decorativos."""
     largura, altura = 1600, 1000
     img = Image.new("RGB", (largura, altura), (28, 58, 48))
     draw = ImageDraw.Draw(img)
@@ -920,8 +1041,102 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     return img
 
 def sanitizar_titulo_mesa(texto):
-    """Remove símbolos problemáticos do título desenhado na mesa (PIL)."""
     return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
+
+# ==========================================
+# v5.1: MESA VISUAL DOS BÚZIOS (PIL)
+# ==========================================
+def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
+    """Desenha a mesa circular de búzios com as cartas caídas em cada casa."""
+    L = 1500
+    fundo = _abrir_imagem_buzios("mesa_fundo")
+    if fundo is not None:
+        img = fundo.convert("RGB").resize((L, L))
+    else:
+        img = Image.new("RGB", (L, L), (26, 46, 38))
+        draw_s = ImageDraw.Draw(img)
+        draw_s.ellipse([90, 90, L - 90, L - 90], outline=(196, 168, 90), width=6)
+        draw_s.ellipse([L // 2 - 150, L // 2 - 150, L // 2 + 150, L // 2 + 150],
+                       outline=(196, 168, 90), width=4)
+        for i, nome_casa in enumerate(BUZIOS_CASAS):
+            x, y = _BUZIOS_POSICOES[i]
+            draw_s.text((x, y - 120), sanitizar_titulo_mesa(nome_casa.split("·")[-1].strip()),
+                        font=_fonte(26), fill=(230, 215, 180), anchor="mm")
+
+    draw = ImageDraw.Draw(img)
+    fonte_ent = _fonte(20)
+    fonte_leg = _fonte(17)
+
+    # agrupa por casa
+    por_casa = {}
+    for item in jogada:
+        por_casa.setdefault(item["casa"], []).append(item)
+
+    for casa_idx, itens in por_casa.items():
+        cx, cy = _BUZIOS_POSICOES[casa_idx]
+        for k, item in enumerate(itens):
+            dx = ((k % 3) - 1) * 160
+            dy = (k // 3) * 250 - 40
+            px, py = cx + dx, cy + dy
+            cw, chh = 140, 235
+            x0, y0 = px - cw // 2, py - chh // 2
+            x1, y1 = px + cw // 2, py + chh // 2
+
+            arte = _imagem_carta_buzios(item["carta"], item["estado"])
+            draw.rounded_rectangle([x0 + 5, y0 + 7, x1 + 5, y1 + 7], radius=14, fill=(12, 24, 20))
+            if arte is not None:
+                ratio = min(cw / arte.width, chh / arte.height)
+                nw = max(1, int(arte.width * ratio))
+                nh = max(1, int(arte.height * ratio))
+                rs = arte.resize((nw, nh))
+                img.paste(rs, (px - nw // 2, py - nh // 2))
+            else:
+                draw.rounded_rectangle([x0, y0, x1, y1], radius=14,
+                                       fill=(246, 240, 224), outline=(120, 90, 40), width=3)
+                d = BUZIOS_DADOS.get(item["carta"])
+                nome = d["entidade"] if d else f"Carta {item['carta']}"
+                draw.text((px, py), nome, font=fonte_leg, fill=(40, 30, 20), anchor="mm")
+
+            # borda de estado + anel do consulente
+            cor_estado = (46, 204, 113) if item["estado"] == "Aberto" else (231, 76, 60)
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=14, outline=cor_estado, width=5)
+            if item["carta"] == 20:
+                draw.rounded_rectangle([x0 - 6, y0 - 6, x1 + 6, y1 + 6], radius=16,
+                                       outline=(255, 215, 90), width=6)
+
+            d = BUZIOS_DADOS.get(item["carta"])
+            nome_curto = d["entidade"].split(" ")[0] if d else "?"
+            draw.text((px, y1 + 16), nome_curto, font=fonte_ent, fill=(250, 244, 226), anchor="mm")
+            draw.ellipse([x1 - 16, y0 + 4, x1 - 2, y0 + 18], fill=cor_estado)
+
+    # faixa de apoios (Zé Pilintra)
+    if apoio:
+        draw.text((60, L - 150), "APOIO:", font=fonte_ent, fill=(250, 244, 226), anchor="lm")
+        for k, item in enumerate(apoio):
+            px = 220 + k * 150
+            py = L - 150
+            cw, chh = 100, 168
+            x0, y0 = px - cw // 2, py - chh // 2
+            x1, y1 = px + cw // 2, py + chh // 2
+            arte = _imagem_carta_buzios(item["carta"], item["estado"])
+            if arte is not None:
+                ratio = min(cw / arte.width, chh / arte.height)
+                nw = max(1, int(arte.width * ratio))
+                nh = max(1, int(arte.height * ratio))
+                img.paste(arte.resize((nw, nh)), (px - nw // 2, py - nh // 2))
+            cor_estado = (46, 204, 113) if item["estado"] == "Aberto" else (231, 76, 60)
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=10, outline=cor_estado, width=4)
+
+    # moldura decorativa (se tiver transparência)
+    borda = _abrir_imagem_buzios("mesa_borda")
+    if borda is not None and borda.mode in ("RGBA", "LA"):
+        borda_rs = borda.convert("RGBA").resize((L, L))
+        img.paste(borda_rs, (0, 0), borda_rs)
+
+    draw = ImageDraw.Draw(img)
+    draw.text((L - 40, L - 30), "Mesa de Buzios - Lunara Terapias",
+              font=_fonte(18), fill=(210, 195, 160), anchor="rm")
+    return img
 
 # ==========================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -943,6 +1158,12 @@ if "comparativa_id" not in st.session_state:
     st.session_state.comparativa_id = None
 if "comparativa_resultado" not in st.session_state:
     st.session_state.comparativa_resultado = None
+if "buz_mesa" not in st.session_state:
+    st.session_state.buz_mesa = None
+if "buz_resultado" not in st.session_state:
+    st.session_state.buz_resultado = None
+if "buz_dados" not in st.session_state:
+    st.session_state.buz_dados = None
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -1015,7 +1236,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # Ponte com a Sala de Estudo Lumina (v5.0)
     if LUMINA_URL:
         st.link_button(
             "🎪 Abrir Sala de Estudo Lumina",
@@ -1024,12 +1244,12 @@ with st.sidebar:
         )
         st.caption(
             "O Lumina é o app companheiro de estudo interativo "
-            "(tabuleiro, geometria e Mentor)."
+            "(tabuleiro, geometria e Mentor do Cigano)."
         )
     else:
         st.caption(
             "🎪 Sala de Estudo: defina LUMINA_URL no topo do app.py "
-            "(ex.: sua URL do Netlify) para ativar o atalho do Lumina."
+            "para ativar o atalho do Lumina."
         )
 
     st.markdown(
@@ -1045,8 +1265,8 @@ st.markdown(
     "##### *Interpretação oracular sintática, ética e profunda com Google Gemini*"
 )
 
-tab_nova, tab_historico, tab_stats, tab_manuais = st.tabs(
-    ["🆕 Nova Leitura", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
+tab_nova, tab_buzios, tab_historico, tab_stats, tab_manuais = st.tabs(
+    ["🆕 Nova Leitura", "🐚 Búzios", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
 )
 
 # ========================
@@ -1061,9 +1281,9 @@ with tab_nova:
             - **Sintaxe do Lenormand:** Cartas lidas em duplas/tríades (Substantivo + Adjetivo).
             - **Tarô Estruturado:** Distinção entre Arcanos Maiores e Menores.
             - **Sibilla Italiana:** 54 cartas com polaridade e fichas técnicas; cenas cotidianas lidas como narrativa.
+            - **Búzios (Ifá):** 16 búzios-cartas em 7 casas + Moeda; aberto fala, fechado recolhe (aba 🐚).
             - **Regra Estrita para Magia:** NUNCA afirma demandas por uma carta isolada. Exige 2-3 cartas de sombra pesada alinhadas.
             - **Livre-Arbítrio Soberano:** O oráculo orienta, preservando a autonomia do consulente.
-            - **🎓 Estudo interativo:** use a Sala Lumina (atalho na sidebar) para geometria, casas e Mentor.
             """
         )
 
@@ -1390,7 +1610,339 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
 # ========================
-# TAB 2 - HISTÓRICO + COMPARATIVA TEMPORAL
+# TAB 2 - BÚZIOS (v5.1)
+# ========================
+with tab_buzios:
+    st.markdown("### 🐚 Mesa de Búzios (Merindilogun · tradição Ifá)")
+    st.caption(
+        "Ferramenta de estudo e apoio à interpretação. Não substitui o jogo de um sacerdote "
+        "iniciado, nem orientações médicas, jurídicas ou psicológicas profissionais."
+    )
+
+    if not BUZIOS_DADOS:
+        st.warning(
+            "Arquivo `buzios.json` não encontrado na raiz do projeto. "
+            "Salve o JSON das 46 fichas (23 cartas × aberto/fechado) ao lado do `app.py`."
+        )
+    else:
+        # ---------- Tema ----------
+        col_t1, col_t2 = st.columns([2, 3])
+        with col_t1:
+            tema_buzios = st.selectbox("Tema da leitura", options=TEMAS_BUZIOS, key="buz_tema")
+        with col_t2:
+            tema_livre_buzios = st.text_input(
+                "Descreva o tema (quando 'Outro')",
+                key="buz_tema_livre",
+                disabled=(tema_buzios != TEMAS_BUZIOS[-1]),
+            )
+
+        st.markdown("#### 🎲 Registro da jogada — 16 búzios-cartas")
+        st.caption(
+            "Cada búzio que caiu na mesa vira uma linha: qual carta (orixá/consulente), "
+            "se caiu **aberto** ou **fechado**, e em qual **casa**. A carta 20 (Consulente) "
+            "deve estar entre as 16 — ela marca o ponto do consulente."
+        )
+
+        # ---------- 16 slots ----------
+        for i in range(16):
+            if i % 4 == 0:
+                cols_b = st.columns(4)
+            with cols_b[i % 4]:
+                key_c = f"buz_carta_{i}"
+                key_e = f"buz_estado_{i}"
+                key_h = f"buz_casa_{i}"
+
+                # anti-duplicata entre búzios
+                usadas_buz = []
+                for j in range(i):
+                    rot_j = st.session_state.get(f"buz_carta_{j}", PLACEHOLDER_CARTA)
+                    id_j = _id_do_rotulo_buzios(rot_j)
+                    if id_j:
+                        usadas_buz.append(id_j)
+
+                valor_c = st.session_state.get(key_c, PLACEHOLDER_CARTA)
+                id_atual = _id_do_rotulo_buzios(valor_c)
+                if id_atual in usadas_buz:
+                    valor_c = PLACEHOLDER_CARTA
+                    st.session_state[key_c] = valor_c
+
+                opcoes_buz = [PLACEHOLDER_CARTA] + [
+                    _rotulo_buzios(c) for c in BUZIOS_CARTAS_MESA if c not in usadas_buz
+                ]
+                if valor_c not in opcoes_buz:
+                    valor_c = PLACEHOLDER_CARTA
+                    st.session_state[key_c] = valor_c
+
+                st.selectbox(
+                    f"Búzio {i+1} — carta",
+                    options=opcoes_buz,
+                    index=opcoes_buz.index(valor_c),
+                    key=key_c,
+                )
+                st.selectbox(
+                    f"Búzio {i+1} — estado",
+                    options=["Aberto", "Fechado"],
+                    key=key_e,
+                )
+                st.selectbox(
+                    f"Búzio {i+1} — casa",
+                    options=BUZIOS_CASAS,
+                    key=key_h,
+                )
+
+        col_x1, col_x2 = st.columns(2)
+        with col_x1:
+            btn_exemplo_buz = st.button(
+                "🎲 Preencher jogada-exemplo", use_container_width=True,
+                help="Gera uma jogada válida aleatória para teste/estudo",
+            )
+        with col_x2:
+            btn_limpar_buz = st.button("🧹 Limpar jogada", use_container_width=True)
+
+        if btn_exemplo_buz:
+            ids_ex = random.sample([c for c in BUZIOS_CARTAS_MESA if c != 20], 15) + [20]
+            random.shuffle(ids_ex)
+            for i, cid in enumerate(ids_ex):
+                st.session_state[f"buz_carta_{i}"] = _rotulo_buzios(cid)
+                st.session_state[f"buz_estado_{i}"] = random.choice(["Aberto", "Fechado"])
+                st.session_state[f"buz_casa_{i}"] = random.choice(BUZIOS_CASAS)
+            st.session_state["buz_apoio_0"] = _rotulo_buzios(random.choice(BUZIOS_CARTAS_APOIO))
+            st.session_state["buz_apoio_estado_0"] = random.choice(["Aberto", "Fechado"])
+            st.session_state["buz_resultado"] = None
+            st.session_state["buz_mesa"] = None
+            st.rerun()
+
+        if btn_limpar_buz:
+            for i in range(16):
+                st.session_state[f"buz_carta_{i}"] = PLACEHOLDER_CARTA
+            for k in range(3):
+                st.session_state[f"buz_apoio_{k}"] = PLACEHOLDER_CARTA
+            st.session_state["buz_resultado"] = None
+            st.session_state["buz_mesa"] = None
+            st.rerun()
+
+        # ---------- Apoios (Zé Pilintra) ----------
+        st.markdown("#### 🃏 Cartas de apoio (opcional, fora dos 16)")
+        cols_ap = st.columns(3)
+        apoio_usados = []
+        for k in range(3):
+            with cols_ap[k]:
+                key_ac = f"buz_apoio_{k}"
+                key_ae = f"buz_apoio_estado_{k}"
+                valor_ap = st.session_state.get(key_ac, PLACEHOLDER_CARTA)
+                id_ap = _id_do_rotulo_buzios(valor_ap)
+                if id_ap in apoio_usados:
+                    valor_ap = PLACEHOLDER_CARTA
+                    st.session_state[key_ac] = valor_ap
+                opcoes_ap = [PLACEHOLDER_CARTA] + [
+                    _rotulo_buzios(c) for c in BUZIOS_CARTAS_APOIO if c not in apoio_usados
+                ]
+                if valor_ap not in opcoes_ap:
+                    valor_ap = PLACEHOLDER_CARTA
+                    st.session_state[key_ac] = valor_ap
+                st.selectbox(f"Apoio {k+1}", options=opcoes_ap, index=opcoes_ap.index(valor_ap), key=key_ac)
+                st.selectbox(f"Estado {k+1}", options=["Aberto", "Fechado"], key=key_ae)
+                id_ap = _id_do_rotulo_buzios(st.session_state.get(key_ac, PLACEHOLDER_CARTA))
+                if id_ap:
+                    apoio_usados.append(id_ap)
+
+        st.markdown("---")
+
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            btn_mesa_buz = st.button("🖼️ Gerar Mesa Visual", type="secondary", use_container_width=True)
+        with col_a2:
+            btn_interp_buz = st.button("🐚 Interpretar Jogada", type="primary", use_container_width=True)
+
+        # ---------- montagem da jogada ----------
+        jogada_buz = []
+        for i in range(16):
+            cid = _id_do_rotulo_buzios(st.session_state.get(f"buz_carta_{i}", PLACEHOLDER_CARTA))
+            if cid:
+                jogada_buz.append({
+                    "carta": cid,
+                    "estado": st.session_state.get(f"buz_estado_{i}", "Aberto"),
+                    "casa": BUZIOS_CASAS.index(st.session_state.get(f"buz_casa_{i}", BUZIOS_CASAS[0])),
+                })
+
+        apoio_buz = []
+        for k in range(3):
+            cid = _id_do_rotulo_buzios(st.session_state.get(f"buz_apoio_{k}", PLACEHOLDER_CARTA))
+            if cid:
+                apoio_buz.append({
+                    "carta": cid,
+                    "estado": st.session_state.get(f"buz_apoio_estado_{k}", "Aberto"),
+                })
+
+        if btn_mesa_buz:
+            if len(jogada_buz) == 0:
+                st.warning("Registre ao menos um búzio antes de gerar a mesa.")
+            else:
+                st.session_state["buz_mesa"] = gerar_imagem_mesa_buzios(
+                    jogada_buz, apoio_buz, tema_buzios
+                )
+
+        if st.session_state.get("buz_mesa") is not None:
+            st.image(st.session_state["buz_mesa"], caption="🐚 Mesa da jogada", use_container_width=True)
+
+        if btn_interp_buz:
+            erros_buz = []
+            if len(jogada_buz) != 16:
+                erros_buz.append(f"A jogada precisa dos 16 búzios registrados (atualmente: {len(jogada_buz)}).")
+            ids_jogados = [j["carta"] for j in jogada_buz]
+            if 20 not in ids_jogados:
+                erros_buz.append("A carta 20 (Consulente) precisa estar entre os 16 búzios — ela marca o ponto do consulente.")
+            chave_buz = obter_chave_api()
+            if not chave_buz:
+                erros_buz.append("Chave de API não configurada (secrets.toml / Secrets do Cloud).")
+
+            if erros_buz:
+                for eb in erros_buz:
+                    st.error(f"⚠️ {eb}")
+            else:
+                # clima
+                tot_ab = sum(1 for j in jogada_buz if j["estado"] == "Aberto")
+                tot_fe = 16 - tot_ab
+                cont_casa = Counter(j["casa"] for j in jogada_buz)
+                vazias = [idx for idx in range(8) if idx not in cont_casa]
+                consul = next(j for j in jogada_buz if j["carta"] == 20)
+
+                linhas_casa = []
+                for idx in range(8):
+                    itens = [j for j in jogada_buz if j["casa"] == idx]
+                    if not itens:
+                        continue
+                    linhas_casa.append(f"{BUZIOS_CASAS[idx]}:")
+                    for j in itens:
+                        d = BUZIOS_DADOS.get(j["carta"], {})
+                        ficha = _ficha_buzios(j["carta"], j["estado"]) or {}
+                        linhas_casa.append(
+                            f"  - {d.get('entidade', '?')} — {j['estado'].upper()} "
+                            f"({ficha.get('palavra', '')}): \"{ficha.get('mensagem', '')}\""
+                        )
+
+                linhas_apoio = []
+                for j in apoio_buz:
+                    d = BUZIOS_DADOS.get(j["carta"], {})
+                    ficha = _ficha_buzios(j["carta"], j["estado"]) or {}
+                    linhas_apoio.append(
+                        f"- {d.get('entidade', '?')} — {j['estado'].upper()} "
+                        f"({ficha.get('palavra', '')}): \"{ficha.get('mensagem', '')}\""
+                    )
+
+                d_cons = BUZIOS_DADOS.get(20, {})
+                f_cons = _ficha_buzios(20, consul["estado"]) or {}
+
+                tema_final = tema_livre_buzios.strip() if tema_buzios == TEMAS_BUZIOS[-1] else tema_buzios
+
+                prompt_buz = f"""
+TEMA DA LEITURA: {tema_final}
+
+DISTRIBUIÇÃO DOS 16 BÚZIOS NA MESA:
+{chr(10).join(linhas_casa)}
+
+CASAS SEM BÚZIOS (domínios adormecidos): {', '.join(BUZIOS_CASAS[i] for i in vazias) if vazias else 'nenhuma'}
+
+CLIMA: {tot_ab} abertos / {tot_fe} fechados.
+
+PONTO DO CONSULENTE: a carta Consulente caiu em {BUZIOS_CASAS[consul['casa']]}, {consul['estado'].upper()}
+— ficha: {f_cons.get('palavra', '')}: "{f_cons.get('mensagem', '')}"
+
+CARTAS DE APOIO (Zé Pilintra, fora dos 16):
+{chr(10).join(linhas_apoio) if linhas_apoio else '(nenhuma carta de apoio tirada)'}
+
+Interprete a jogada conforme as regras da system instruction, cruzando clima, casas,
+ponto do consulente e apoios com o tema perguntado.
+"""
+
+                try:
+                    client_buz = genai.Client(api_key=chave_buz)
+                    with st.spinner("🐚 Os búzios estão falando..."):
+                        resp_buz = chamar_gemini(
+                            client_buz,
+                            prompt_buz,
+                            types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_BUZIOS,
+                                temperature=0.7,
+                            ),
+                        )
+                    if resp_buz and resp_buz.text:
+                        st.session_state["buz_resultado"] = resp_buz.text
+                        if st.session_state.get("buz_mesa") is None:
+                            st.session_state["buz_mesa"] = gerar_imagem_mesa_buzios(
+                                jogada_buz, apoio_buz, tema_buzios
+                            )
+                        cartas_hist = {}
+                        for n, j in enumerate(jogada_buz, start=1):
+                            d = BUZIOS_DADOS.get(j["carta"], {})
+                            cartas_hist[f"Búzio {n:02d} · {BUZIOS_CASAS[j['casa']]}"] = \
+                                f"{d.get('entidade', '?')} ({j['estado']})"
+                        for n, j in enumerate(apoio_buz, start=1):
+                            d = BUZIOS_DADOS.get(j["carta"], {})
+                            cartas_hist[f"Apoio {n}"] = f"{d.get('entidade', '?')} ({j['estado']})"
+
+                        st.session_state["buz_dados"] = {
+                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "nome_consulente": nome_consulente,
+                            "signo_consulente": signo_consulente,
+                            "modo_atendimento": modo_atendimento,
+                            "oraculo": "Búzios (Ifá)",
+                            "metodo": f"Mesa de Búzios · {tema_final}",
+                            "tom_leitura": "Mentor de Búzios",
+                            "pergunta": tema_final,
+                            "cartas": cartas_hist,
+                            "interpretacao": resp_buz.text,
+                        }
+                        save_reading(st.session_state["buz_dados"])
+                        st.rerun()
+                    else:
+                        st.error("❌ Não foi possível gerar a interpretação.")
+                except Exception as e:
+                    if eh_erroro_transitorio(e):
+                        st.error(
+                            "❌ **Alta demanda no Gemini (503/429).** "
+                            "Aguarde 1–2 minutos e tente novamente."
+                        )
+                    else:
+                        st.error(f"❌ **Erro na consulta:** `{str(e)}`")
+
+        # ---------- resultado ----------
+        if st.session_state.get("buz_resultado") and st.session_state.get("buz_dados"):
+            st.markdown("---")
+            st.markdown("## 🐚 Leitura da Jogada")
+            with st.container(border=True):
+                st.markdown(st.session_state["buz_resultado"])
+
+            st.markdown("### 💾 Exportar")
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                st.download_button(
+                    "📄 Baixar leitura (.txt)",
+                    data=st.session_state["buz_resultado"].encode("utf-8-sig"),
+                    file_name=f"buzios_{_slug(st.session_state['buz_dados']['nome_consulente'])}_{_carimbo(st.session_state['buz_dados']['data_hora'])}.txt",
+                    mime="text/plain; charset=utf-8",
+                    use_container_width=True,
+                )
+            with col_e2:
+                try:
+                    pdf_buz = gerar_pdf_leitura(
+                        dados_leitura=st.session_state["buz_dados"],
+                        modo_profissional=modo_profissional,
+                        dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
+                        imagem_mesa=st.session_state.get("buz_mesa"),
+                    )
+                    st.download_button(
+                        "📕 Baixar relatório (.pdf)",
+                        data=pdf_buz,
+                        file_name=f"buzios_{_slug(st.session_state['buz_dados']['nome_consulente'])}_{_carimbo(st.session_state['buz_dados']['data_hora'])}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {e}")
+
+# ========================
+# TAB 3 - HISTÓRICO + COMPARATIVA TEMPORAL
 # ========================
 with tab_historico:
     st.markdown("### 📚 Leituras Salvas")
@@ -1547,7 +2099,7 @@ Realize a Análise Comparativa Temporal completa.
                         st.rerun()
 
 # ========================
-# TAB 3 - ESTATÍSTICAS
+# TAB 4 - ESTATÍSTICAS
 # ========================
 with tab_stats:
     st.markdown("### 📊 Painel de Estatísticas do Oraculista")
@@ -1618,14 +2170,14 @@ with tab_stats:
             p3.metric("Negativas [−]", pol.get("Negativa", 0))
 
 # ========================
-# TAB 4 - MANUAIS
+# TAB 5 - MANUAIS
 # ========================
 with tab_manuais:
     st.markdown("### 📖 Manuais do Terapeuta")
     st.markdown(
         "Estude a linhagem, a arquitetura e as combinações de cada oráculo. "
         "Os manuais são arquivos HTML na raiz do projeto — leia aqui ou baixe para estudar offline. "
-        "Para prática interativa (tabuleiro, geometria e Mentor), use a **Sala Lumina** na sidebar."
+        "Para prática interativa do Cigano (tabuleiro, geometria e Mentor), use a **Sala Lumina** na sidebar."
     )
 
     manual_escolha = st.selectbox("Escolha o manual", options=list(MANUAIS.keys()), index=0)
@@ -1667,8 +2219,8 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.0 • Google Gemini API ({MODELO_GEMINI}) • "
-    f"Sala de Estudo: Lumina • "
+    f"Auxiliar de Cartomancia & Oráculos v5.1 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
