@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.3
+Auxiliar de Cartomancia & Oráculos v5.4
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -14,10 +14,11 @@ paginação) e TXT, Modo Profissional, Múltiplos Tons, Anti-duplicata, Sorteio 
 Mesa Visual com arte real e medalhões, Retry com backoff (503/429), Painel de
 Estatísticas, Manuais do Terapeuta e ponte para a Sala de Estudo Lumina.
 
-v5.2: Registro da jogada de búzios em tabela por número (estado + casa).
-v5.3: Búzios com REGRA DE JOGADA configurável (16 ou 20 búzios caídos),
-      mesa visual exibida a 50% na tela e, no PDF, em 12x12 cm centralizada
-      no topo da página (demais oráculos mantêm mesa paisagem em página cheia).
+v5.3: Regra de jogada de búzios configurável (16/20); mesa compacta na tela e no PDF.
+v5.4: PONTE WHATSAPP — telefone opcional do consulente (salvo no histórico com
+      migração automática do banco), seletor de conteúdo do envio
+      ("Somente a mesa" em PNG ilustrativo ou "Mesa + explicação" em PDF),
+      mensagem modelo com trecho da leitura e link wa.me pronto.
 """
 
 import os
@@ -32,6 +33,7 @@ from collections import Counter
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import quote_plus
 
 import pandas as pd
 import streamlit as st
@@ -73,6 +75,9 @@ ARQ_BUZIOS = Path(__file__).parent / "buzios.json"
 
 # PONTE COM O LUMINA (Sala de Estudo interativa em React)
 LUMINA_URL = "https://luminacards.netlify.app/"
+
+# Marca exibida nas mensagens de WhatsApp
+MARCA_PADRAO = "Lunara Terapias"
 
 MANUAIS = {
     "Sibilla Italiana (54 cartas)": "manual-sibilla-completo.html",
@@ -119,6 +124,138 @@ def _slug(texto):
 
 def _carimbo(data_hora):
     return re.sub(r"[^0-9]", "", str(data_hora))[:12]
+
+# ==========================================
+# v5.4: PONTE WHATSAPP
+# ==========================================
+MENSAGEM_WHATS_MESA = (
+    "🔮 *{marca}* — Registro da sua tiragem\n"
+    "Olá, {nome}! 🌙\n"
+    "Segue a imagem da mesa da sua leitura de {data} (*{tema}*).\n"
+    "\n"
+    "🃏 Na mesa:\n{cartas}\n"
+    "\n"
+    "Guarde esta imagem como espelho do seu momento. ✨\n"
+    "Com carinho, {oraculista}.\n"
+    "🕊️ O oráculo orienta; quem decide é você."
+)
+
+MENSAGEM_WHATS_COMPLETA = (
+    "🔮 *{marca}* — Leitura Oracular\n"
+    "Olá, {nome}! 🌙\n"
+    "Sua leitura de {data} (*{tema}*) está pronta.\n"
+    "\n"
+    "Trecho inicial:\n\"{trecho}…\"\n"
+    "\n"
+    "📎 O relatório completo em PDF segue em anexo nesta conversa.\n"
+    "Com carinho, {oraculista}.\n"
+    "🕊️ O oráculo orienta; quem decide é você."
+)
+
+def _normalizar_whatsapp(texto):
+    """Deixa o número no formato internacional (55 + DDD + número)."""
+    dig = re.sub(r"[^0-9]", "", str(texto or ""))
+    if not dig:
+        return ""
+    if len(dig) in (10, 11):
+        dig = "55" + dig
+    return dig
+
+def _excerto(texto, limite=900):
+    """Recorta um trecho inicial elegante da interpretação (quebra em parágrafo/frase)."""
+    t = (texto or "").strip()
+    if len(t) <= limite:
+        return t
+    corte = t.rfind("\n", 0, limite)
+    if corte < 200:
+        corte = t.rfind(". ", 0, limite)
+    if corte < 200:
+        corte = limite
+    return t[: corte + 1].strip()
+
+def _link_whatsapp(numero, mensagem):
+    return f"https://wa.me/{numero}?text={quote_plus(mensagem)}"
+
+def bloco_whatsapp(dados, mesa_img, pdf_bytes, chave_ui, oraculista=""):
+    """Seletor de conteúdo + download do arquivo + link wa.me com mensagem pronta."""
+    st.markdown("#### 📲 Enviar ao consulente (WhatsApp)")
+    numero = _normalizar_whatsapp(dados.get("telefone", ""))
+    modo = st.radio(
+        "Conteúdo do envio",
+        options=["🖼️ Somente a mesa (imagem ilustrativa)", "📕 Mesa + explicação (PDF)"],
+        horizontal=True,
+        key=f"wa_modo_{chave_ui}",
+    )
+
+    col_w1, col_w2 = st.columns(2)
+    with col_w1:
+        if modo.startswith("🖼️"):
+            if mesa_img is not None:
+                buf = BytesIO()
+                mesa_img.save(buf, format="PNG")
+                st.download_button(
+                    "📥 Baixar imagem da mesa (.png)",
+                    data=buf.getvalue(),
+                    file_name=f"mesa_{_slug(dados.get('nome_consulente'))}_{_carimbo(dados['data_hora'])}.png",
+                    mime="image/png",
+                    use_container_width=True,
+                    key=f"wa_png_{chave_ui}",
+                )
+            else:
+                st.caption("Sem imagem de mesa disponível para esta leitura.")
+        else:
+            if pdf_bytes:
+                st.download_button(
+                    "📥 Baixar relatório (.pdf)",
+                    data=pdf_bytes,
+                    file_name=f"relatorio_{_slug(dados.get('nome_consulente'))}_{_carimbo(dados['data_hora'])}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key=f"wa_pdf_{chave_ui}",
+                )
+            else:
+                st.caption("PDF indisponível no momento.")
+
+    with col_w2:
+        if numero:
+            itens = list(dados.get("cartas", {}).items())
+            cartas_lista = "\n".join(f"• {pos}: {c}" for pos, c in itens[:12])
+            if len(itens) > 12:
+                cartas_lista += "\n• …"
+            tema_msg = dados.get("metodo", "leitura")
+            if modo.startswith("🖼️"):
+                msg = MENSAGEM_WHATS_MESA.format(
+                    marca=MARCA_PADRAO,
+                    nome=dados.get("nome_consulente") or "querido(a)",
+                    data=dados["data_hora"],
+                    tema=tema_msg,
+                    cartas=cartas_lista or "(mesa em anexo)",
+                    oraculista=oraculista or MARCA_PADRAO,
+                )
+            else:
+                msg = MENSAGEM_WHATS_COMPLETA.format(
+                    marca=MARCA_PADRAO,
+                    nome=dados.get("nome_consulente") or "querido(a)",
+                    data=dados["data_hora"],
+                    tema=tema_msg,
+                    trecho=_excerto(dados.get("interpretacao", "")),
+                    oraculista=oraculista or MARCA_PADRAO,
+                )
+            st.link_button(
+                "📲 Abrir WhatsApp com mensagem",
+                _link_whatsapp(numero, msg),
+                use_container_width=True,
+                key=f"wa_link_{chave_ui}",
+            )
+        else:
+            st.caption(
+                "Informe o **WhatsApp do consulente** na barra lateral "
+                "(campo 📱) para ativar o botão de envio."
+            )
+    st.caption(
+        "⚖️ Envie somente com consentimento do consulente. "
+        "O WhatsApp não aceita anexo automático: baixe o arquivo ao lado e anexe (📎) na conversa."
+    )
 
 # ==========================================
 # RESILIÊNCIA - RETRY COM BACKOFF
@@ -185,19 +322,29 @@ def init_db():
     conn.commit()
     conn.close()
 
+def _migrar_db():
+    """v5.4: adiciona a coluna telefone sem perder o histórico existente."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    cols = [r[1] for r in c.execute("PRAGMA table_info(leituras)")]
+    if "telefone" not in cols:
+        c.execute("ALTER TABLE leituras ADD COLUMN telefone TEXT")
+        conn.commit()
+    conn.close()
+
 def save_reading(data):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
         INSERT INTO leituras
         (data_hora, nome_consulente, signo_consulente, modo_atendimento,
-         oraculo, metodo, tom_leitura, pergunta, cartas, interpretacao)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         oraculo, metodo, tom_leitura, pergunta, cartas, interpretacao, telefone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         data["data_hora"], data["nome_consulente"], data["signo_consulente"],
         data["modo_atendimento"], data["oraculo"], data["metodo"],
         data["tom_leitura"], data["pergunta"], json.dumps(data["cartas"], ensure_ascii=False),
-        data["interpretacao"]
+        data["interpretacao"], data.get("telefone", "")
     ))
     conn.commit()
     conn.close()
@@ -225,7 +372,8 @@ def load_reading(reading_id):
             "signo_consulente": row[3], "modo_atendimento": row[4],
             "oraculo": row[5], "metodo": row[6], "tom_leitura": row[7],
             "pergunta": row[8], "cartas": json.loads(row[9]),
-            "interpretacao": row[10]
+            "interpretacao": row[10],
+            "telefone": row[11] if len(row) > 11 else "",
         }
     return None
 
@@ -237,6 +385,7 @@ def delete_reading(reading_id):
     conn.close()
 
 init_db()
+_migrar_db()
 
 # ==========================================
 # ORÁCULO SIBILLA - CARGA DO sibilla.json
@@ -315,16 +464,9 @@ BUZIOS_CASAS = [
     "Moeda (centro)",
 ]
 
-# Posições (x, y) das casas na mesa visual 1500x1500 (círculo horário + centro)
 _BUZIOS_POSICOES = [
-    (750, 300),    # Casa 1 Xangô (topo)
-    (1120, 470),   # Casa 2 Exu
-    (1230, 830),   # Casa 3 Ogun
-    (1000, 1160),  # Casa 4 Oxóssi
-    (500, 1160),   # Casa 5 Oxalá
-    (270, 830),    # Casa 6 Iemanjá
-    (380, 470),    # Casa 7 Ossain
-    (750, 760),    # Moeda (centro)
+    (750, 300), (1120, 470), (1230, 830), (1000, 1160),
+    (500, 1160), (270, 830), (380, 470), (750, 760),
 ]
 
 def _rotulo_buzios(cid):
@@ -599,6 +741,7 @@ def sanitizar_texto_pdf(texto):
         '📐': '[GEOMETRIA]', '🧠': '[MENTE]', '🪞': '[ESPELHO]',
         '🐴': '[CAVALO]', '🧵': '[TRAMA]', '🏛️': '[CASAS]',
         '🐚': '[BUZIOS]', '🌑': '[SILENCIO]', '🎪': '[SALA]',
+        '📲': '[WHATS]', '📥': '[BAIXAR]', '📎': '[ANEXO]',
         '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
@@ -632,9 +775,7 @@ class _PDFOraculo(FPDF):
 
 def gerar_pdf_leitura(dados_leitura, modo_profissional=False, dados_oraculista=None,
                       imagem_mesa=None, mesa_largura_mm=180.0):
-    """Gera um PDF formatado da leitura oracular, com mesa visual opcional.
-    mesa_largura_mm: 180 = página cheia (mesas paisagem); 120 = representação
-    compacta centralizada no topo (mesa quadrada dos Búzios)."""
+    """Gera um PDF formatado da leitura oracular, com mesa visual opcional."""
     pdf = _PDFOraculo()
     pdf.alias_nb_pages()
     pdf.add_page()
@@ -893,7 +1034,6 @@ def obter_imagem_carta(nome_carta, oraculo):
 # IMAGENS DO BARALHO DE BÚZIOS
 # ==========================================
 def _abrir_imagem_buzios(nome_base):
-    """Tenta abrir assets/cartas/buzios/{nome_base} em várias extensões."""
     pasta = PASTA_CARTAS / "buzios"
     for ext in (".jpg", ".jpeg", ".png", ".webp"):
         caminho = pasta / f"{nome_base}{ext}"
@@ -1250,7 +1390,7 @@ with st.sidebar:
             index=0,
         )
 
-    with st.expander("🧑‍🦰 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍ Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -1259,6 +1399,12 @@ with st.sidebar:
             "Signo / Data de Nascimento (Opcional)",
             value="",
             placeholder="Ex: Áries, 15/03/1990"
+        )
+        whatsapp_consulente = st.text_input(
+            "📱 WhatsApp (opcional, p/ envio)",
+            value="",
+            placeholder="Ex: 16 99999-0000",
+            help="Usado apenas para montar o link de envio com o seu consentimento do consulente.",
         )
 
     st.markdown("---")
@@ -1558,6 +1704,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                         "pergunta": question_context.strip(),
                         "cartas": cartas_selecionadas,
                         "interpretacao": interpretation_text,
+                        "telefone": whatsapp_consulente,
                     }
                     st.session_state.dados_leitura_atual = dados_leitura
                     st.session_state.interpretacao_atual = interpretation_text
@@ -1590,8 +1737,30 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
         st.markdown("---")
         st.markdown("### 💾 Exportar Relatório")
 
-        col_exp1, col_exp2 = st.columns(2)
+        # v5.4: prepara mesa e PDF uma única vez para os botões e o WhatsApp
+        mesa_para_pdf = st.session_state.get("mesa_img")
+        pdf_bytes = None
+        if mesa_para_pdf is None and dados.get("cartas"):
+            mesa_para_pdf = gerar_imagem_mesa(
+                list(dados["cartas"].values()),
+                dados.get("metodo", ""),
+                dados.get("oraculo", ""),
+            )
+        try:
+            dados_orac_pdf = {
+                "nome": nome_oraculista,
+                "contato": contato_oraculista,
+            } if modo_profissional else None
+            pdf_bytes = gerar_pdf_leitura(
+                dados_leitura=dados,
+                modo_profissional=modo_profissional,
+                dados_oraculista=dados_orac_pdf,
+                imagem_mesa=mesa_para_pdf,
+            )
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
 
+        col_exp1, col_exp2 = st.columns(2)
         with col_exp1:
             st.download_button(
                 label="📄 Baixar Interpretação (.txt)",
@@ -1600,29 +1769,8 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                 mime="text/plain; charset=utf-8",
                 use_container_width=True,
             )
-
         with col_exp2:
-            try:
-                mesa_para_pdf = st.session_state.get("mesa_img")
-                if mesa_para_pdf is None and dados.get("cartas"):
-                    mesa_para_pdf = gerar_imagem_mesa(
-                        list(dados["cartas"].values()),
-                        dados.get("metodo", ""),
-                        dados.get("oraculo", ""),
-                    )
-
-                dados_orac_pdf = {
-                    "nome": nome_oraculista,
-                    "contato": contato_oraculista,
-                } if modo_profissional else None
-
-                pdf_bytes = gerar_pdf_leitura(
-                    dados_leitura=dados,
-                    modo_profissional=modo_profissional,
-                    dados_oraculista=dados_orac_pdf,
-                    imagem_mesa=mesa_para_pdf,
-                )
-
+            if pdf_bytes:
                 st.download_button(
                     label="📕 Baixar Relatório (.pdf)",
                     data=pdf_bytes,
@@ -1630,14 +1778,21 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
                     mime="application/pdf",
                     use_container_width=True,
                 )
-            except Exception as e:
-                st.error(f"Erro ao gerar PDF: {e}")
 
         with st.expander("📋 Ver texto formatado para cópia rápida"):
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
+        # v5.4: ponte WhatsApp (somente mesa OU mesa + explicação)
+        bloco_whatsapp(
+            dados,
+            mesa_para_pdf,
+            pdf_bytes,
+            "nova",
+            oraculista=nome_oraculista if modo_profissional else "",
+        )
+
 # ========================
-# TAB 2 - BÚZIOS (v5.3: regra configurável + mesa compacta)
+# TAB 2 - BÚZIOS
 # ========================
 with tab_buzios:
     st.markdown("### 🐚 Mesa de Búzios (Merindilogun · tradição Ifá)")
@@ -1652,7 +1807,6 @@ with tab_buzios:
             "Salve o JSON das 46 fichas (23 cartas × aberto/fechado) ao lado do `app.py`."
         )
     else:
-        # ---------- Tema ----------
         col_t1, col_t2 = st.columns([2, 3])
         with col_t1:
             tema_buzios = st.selectbox("Tema da leitura", options=TEMAS_BUZIOS, key="buz_tema")
@@ -1663,7 +1817,6 @@ with tab_buzios:
                 disabled=(tema_buzios != TEMAS_BUZIOS[-1]),
             )
 
-        # ---------- Regra da jogada (v5.3) ----------
         col_r1, col_r2 = st.columns([2, 3])
         with col_r1:
             regra_buzios = st.selectbox(
@@ -1683,7 +1836,6 @@ with tab_buzios:
                 "Aberto/Fechado, com casa definida e a **20 · Consulente** entre elas."
             )
 
-        # ---------- Registro da jogada: tabela por número ----------
         st.markdown("#### 🎲 Registro da jogada — carta por carta, em ordem de número")
         st.caption(
             f"Para cada carta que **caiu na mesa**, marque **Aberto** ou **Fechado** e a **casa** onde caiu. "
@@ -1782,7 +1934,6 @@ with tab_buzios:
         with col_a2:
             btn_interp_buz = st.button("🐚 Interpretar Jogada", type="primary", use_container_width=True)
 
-        # ---------- montagem da jogada a partir da tabela ----------
         jogada_buz = []
         casas_faltando = []
         for idx_linha, row in df_jogada.iterrows():
@@ -1815,7 +1966,6 @@ with tab_buzios:
                 )
 
         if st.session_state.get("buz_mesa") is not None:
-            # v5.3: exibição compacta (50% do canvas) para não dominar a tela
             st.image(
                 st.session_state["buz_mesa"],
                 caption="🐚 Mesa da jogada (representação compacta)",
@@ -1936,6 +2086,7 @@ ponto do consulente e apoios com o tema perguntado.
                             "pergunta": tema_final,
                             "cartas": cartas_hist,
                             "interpretacao": resp_buz.text,
+                            "telefone": whatsapp_consulente,
                         }
                         save_reading(st.session_state["buz_dados"])
                         st.rerun()
@@ -1950,7 +2101,6 @@ ponto do consulente e apoios com o tema perguntado.
                     else:
                         st.error(f"❌ **Erro na consulta:** `{str(e)}`")
 
-        # ---------- resultado ----------
         if st.session_state.get("buz_resultado") and st.session_state.get("buz_dados"):
             st.markdown("---")
             st.markdown("## 🐚 Leitura da Jogada")
@@ -1958,6 +2108,18 @@ ponto do consulente e apoios com o tema perguntado.
                 st.markdown(st.session_state["buz_resultado"])
 
             st.markdown("### 💾 Exportar")
+            pdf_buz = None
+            try:
+                pdf_buz = gerar_pdf_leitura(
+                    dados_leitura=st.session_state["buz_dados"],
+                    modo_profissional=modo_profissional,
+                    dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
+                    imagem_mesa=st.session_state.get("buz_mesa"),
+                    mesa_largura_mm=120.0,
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
             col_e1, col_e2 = st.columns(2)
             with col_e1:
                 st.download_button(
@@ -1968,15 +2130,7 @@ ponto do consulente e apoios com o tema perguntado.
                     use_container_width=True,
                 )
             with col_e2:
-                try:
-                    # v5.3: mesa quadrada dos búzios em 12x12 cm no topo da página
-                    pdf_buz = gerar_pdf_leitura(
-                        dados_leitura=st.session_state["buz_dados"],
-                        modo_profissional=modo_profissional,
-                        dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
-                        imagem_mesa=st.session_state.get("buz_mesa"),
-                        mesa_largura_mm=120.0,
-                    )
+                if pdf_buz:
                     st.download_button(
                         "📕 Baixar relatório (.pdf)",
                         data=pdf_buz,
@@ -1984,8 +2138,14 @@ ponto do consulente e apoios com o tema perguntado.
                         mime="application/pdf",
                         use_container_width=True,
                     )
-                except Exception as e:
-                    st.error(f"Erro ao gerar PDF: {e}")
+
+            bloco_whatsapp(
+                st.session_state["buz_dados"],
+                st.session_state.get("buz_mesa"),
+                pdf_buz,
+                "buzios",
+                oraculista=nome_oraculista if modo_profissional else "",
+            )
 
 # ========================
 # TAB 3 - HISTÓRICO + COMPARATIVA TEMPORAL
@@ -2080,6 +2240,7 @@ Realize a Análise Comparativa Temporal completa.
                                         "pergunta": f"[Desdobramento] {base['pergunta']}",
                                         "cartas": base["cartas"],
                                         "interpretacao": resp.text,
+                                        "telefone": base.get("telefone", ""),
                                     }
                                     save_reading(dados_comp)
                                     st.rerun()
@@ -2265,8 +2426,8 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.3 • Google Gemini API ({MODELO_GEMINI}) • "
-    f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • "
+    f"Auxiliar de Cartomancia & Oráculos v5.4 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • Envio via WhatsApp • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
