@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.4
+Auxiliar de Cartomancia & Oráculos v5.5
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -8,17 +8,19 @@ Oráculos suportados:
 - Tarô Tradicional (78 cartas)
 - Sibilla Italiana (54 cartas, fichas via sibilla.json)
 - Búzios (Merindilogun, tradição Ifá, 23 cartas aberto/fechado via buzios.json)
+- Regressão Terapêutica/Apometria (44 cartas, 4 setores + Espelho, via regressao.json)
 
 Recursos: Histórico SQLite com Comparativa Temporal, Exportação PDF (mesa automática,
 paginação) e TXT, Modo Profissional, Múltiplos Tons, Anti-duplicata, Sorteio Digital,
 Mesa Visual com arte real e medalhões, Retry com backoff (503/429), Painel de
-Estatísticas, Manuais do Terapeuta e ponte para a Sala de Estudo Lumina.
+Estatísticas, Manuais do Terapeuta, ponte WhatsApp e Sala de Estudo Lumina.
 
 v5.3: Regra de jogada de búzios configurável (16/20); mesa compacta na tela e no PDF.
-v5.4: PONTE WHATSAPP — telefone opcional do consulente (salvo no histórico com
-      migração automática do banco), seletor de conteúdo do envio
-      ("Somente a mesa" em PNG ilustrativo ou "Mesa + explicação" em PDF),
-      mensagem modelo com trecho da leitura e link wa.me pronto.
+v5.4: Ponte WhatsApp (somente mesa PNG ou mesa + PDF), telefone no histórico.
+v5.5: ORÁCULO DE REGRESSÃO — aba própria com 4 colunas-setores coloridas,
+      tiragens Jornada de 4 e Linha Apométrica, cartas invertidas do Setor 3
+      (face sombra + presente oculto), Espelho (44) opcional como lente central,
+      mesa visual PIL com arte girada e Mentor clínico-apométrico.
 """
 
 import os
@@ -72,6 +74,13 @@ PASTA_CARTAS = Path(__file__).parent / "assets" / "cartas"
 PASTA_MEDALHOES = Path(__file__).parent / "assets" / "medalhoes"
 ARQ_SIBILLA = Path(__file__).parent / "sibilla.json"
 ARQ_BUZIOS = Path(__file__).parent / "buzios.json"
+ARQ_REGRESSAO = Path(__file__).parent / "regressao.json"
+
+# Rotação 180° compatível entre versões do Pillow
+try:
+    _ROT180 = Image.Transpose.ROTATE_180
+except AttributeError:
+    _ROT180 = Image.ROTATE_180
 
 # PONTE COM O LUMINA (Sala de Estudo interativa em React)
 LUMINA_URL = "https://luminacards.netlify.app/"
@@ -526,6 +535,126 @@ ESTRUTURA OBRIGATÓRIA DA RESPOSTA (Markdown):
 """
 
 # ==========================================
+# v5.5: ORÁCULO DE REGRESSÃO - CARGA DO regressao.json
+# ==========================================
+def _carregar_regressao():
+    """Carrega as 44 fichas e os 5 setores do regressao.json."""
+    try:
+        with open(ARQ_REGRESSAO, "r", encoding="utf-8") as f:
+            dados = json.load(f)
+        cartas = {int(c["numero"]): c for c in dados.get("cartas", [])}
+        setores = {int(s["id"]): s for s in dados.get("meta", {}).get("setores", [])}
+        return cartas, setores
+    except Exception:
+        return {}, {}
+
+REGRESSAO_CARTAS, REGRESSAO_SETORES = _carregar_regressao()
+
+REGRESSAO_METODOS = {
+    "Jornada de 4 Cartas (1 por setor)": [
+        ("s1", 1, "Coluna 1 · Etapas (QUANDO)"),
+        ("s2", 2, "Coluna 2 · Cenários (ONDE / COM QUEM)"),
+        ("s3", 3, "Coluna 3 · Sombra (QUAL DOR)"),
+        ("s4", 4, "Coluna 4 · Integração (COMO CURAR)"),
+    ],
+    "Linha Apométrica de Regressão (5 cartas)": [
+        ("s1", 1, "Coluna 1 · Etapas (QUANDO)"),
+        ("s2", 2, "Coluna 2 · Cenários (ONDE / COM QUEM)"),
+        ("s3a", 3, "Coluna 3 · Sombra — Bloqueio/Esquema"),
+        ("s3b", 3, "Coluna 3 · Sombra — Cordão/Voto antigo"),
+        ("s4", 4, "Coluna 4 · Integração (COMO CURAR)"),
+    ],
+}
+
+def _cartas_do_setor(setor_id):
+    return sorted(
+        n for n, c in REGRESSAO_CARTAS.items()
+        if int(c.get("setor", -1)) == setor_id
+    )
+
+def _rotulo_regressao(numero):
+    c = REGRESSAO_CARTAS.get(numero)
+    return f"{numero:02d} · {c['nome']}" if c else f"{numero:02d}"
+
+def _numero_do_rotulo_regressao(rotulo):
+    try:
+        return int(str(rotulo).split("·")[0].strip())
+    except Exception:
+        return None
+
+def _imagem_carta_regressao(numero):
+    c = REGRESSAO_CARTAS.get(numero)
+    if not c:
+        return None
+    caminho = PASTA_CARTAS / "regressao" / str(c.get("arquivo", ""))
+    if caminho.exists():
+        try:
+            return Image.open(caminho).convert("RGB")
+        except Exception:
+            return None
+    return None
+
+def _hex_rgb(h):
+    h = str(h or "#888888").lstrip("#")
+    try:
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    except Exception:
+        return (136, 136, 136)
+
+def _luminancia(rgb):
+    r, g, b = rgb
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+SYSTEM_INSTRUCTION_REGRESSAO = """
+Você é um **Mentor de Regressão Terapêutica, Apometria e Memória de Alma**, auxiliando um terapeuta humano em sessão clínica holística.
+
+PILARES DO SISTEMA:
+- Psicologia Analítica (Jung): sombra, arquétipos, criança mágica/ferida, mestre interno.
+- Terapia do Esquema (Young): privação emocional, emaranhamento, padrões inflexíveis, fracasso, autossacrifício.
+- Apometria terapêutica: desdobramento consciente, pulsos magnéticos de 1 a 7, cordões sutis, votos e contratos.
+- Regressão e memória de alma: narrativas de vidas passadas, resgate de dons e partes fragmentadas.
+
+A MESA (4 colunas-setores):
+- SETOR 1 · ETAPAS (QUANDO): fase em que a matriz do bloqueio se instalou (intrauterino, nascimento, infância, adolescência, ancestral, vida passada).
+- SETOR 2 · CENÁRIOS (ONDE / COM QUEM): palco e vínculos onde a carga ancorou (lar, mãe, pai, tribo, escola, primeiro amor, templo, batalha...).
+- SETOR 3 · SOMBRA (QUAL DOR): mecanismo de defesa/esquema ativo. Com DUAS cartas (Linha Apométrica): a 1ª é o bloqueio/esquema; a 2ª aponta cordão cármico, voto ou obsessão antiga.
+- SETOR 4 · INTEGRAÇÃO (COMO CURAR): chave de cura e protocolo apométrico/de conscientização.
+
+CARTAS INVERTIDAS (exclusivas do Setor 3):
+- Quando marcada INVERTIDA, a face-sombra está ativa: leia o RÓTULO inverso, a FRASE-SOMBRA e o COMPORTAMENTO como a voz vigente da carta.
+- Feche SEMPRE apontando o PRESENTE OCULTO como a porta de saída e o dom a resgatar.
+
+O ESPELHO (carta 44, opcional):
+- Quando presente, é a LENTE CENTRAL: feche a leitura com a pergunta de autorreflexão da ficha ("o que no outro ativa o que ainda não integrei?"), conectando-a às cartas tiradas.
+- Quando ausente, o fechamento fica por conta das chaves do Setor 4 — não invente espelho.
+
+SINTAXE NARRATIVA (matriz de cruzamento obrigatória):
+- [Setor 1 + Setor 2] → ORIGEM E AMBIENTE: a raiz histórica do conflito.
+- [Setor 2 + Setor 3] → CRIAÇÃO DO TRAUMA: como o meio moldou a dor ou a defesa.
+- [Setor 3 + Setor 4] → TRANSMUTAÇÃO: a ferida conectada ao seu recurso de libertação.
+
+MANEJO CLÍNICO (seção obrigatória ao final):
+- Imaginação ativa junguiana: convide o consulente a olhar a ilustração e nomear o que surge no peito, sem induzir respostas.
+- Pulsos apométricos: quando o Setor 4 trouxer Rescisão, Desapego ou Voz Própria, sugira o comando verbal de rompimento em 7 pulsos cadenciados.
+- Contenção de abreação: mão no peito, pés no chão, desaceleração em 7 pulsos e redirecionamento do olhar para a carta de Integração.
+
+LIMITES ÉTICOS INEGOCIÁVEIS:
+- Ferramenta COMPLEMENTAR de autoconhecimento: NUNCA substitui psicoterapia, psiquiatria ou medicina; não faça diagnósticos (DSM/CID) nem prometa cura.
+- Não profetize morte, doenças graves ou sentenças; descreva processos e encaminhe ao profissional diante de risco.
+- Vidas passadas e apometria: linguagem simbólico-narrativa ("a memória aponta..."), nunca imposição literal.
+- Livre-arbítrio e ritmo do consulente: nenhum confronto brutal; o Espelho confronta com gentileza.
+- Use EXATAMENTE as fichas fornecidas (palavra-chave, diagnóstico, mensagem, polaridades) como alicerce.
+
+ESTRUTURA OBRIGATÓRIA DA RESPOSTA (Markdown):
+### 🌀 1. Linha do Tempo (QUANDO — Setor 1)
+### 🏛️ 2. Cenários de Ancoragem (ONDE / COM QUEM — Setor 2)
+### 🌑 3. A Sombra Ativada (QUAL DOR — Setor 3, com as faces invertidas)
+### 🔑 4. Chaves de Cura (COMO — Setor 4 + protocolo apométrico)
+### 🪞 5. O Espelho / Fechamento Reflexivo
+### 🕊️ 6. Manejo Clínico, Contenção e Encaminhamentos
+"""
+
+# ==========================================
 # BANCO DE DADOS DE CARTAS E POSIÇÕES
 # ==========================================
 CARTAS_CIGANO = [
@@ -742,6 +871,7 @@ def sanitizar_texto_pdf(texto):
         '🐴': '[CAVALO]', '🧵': '[TRAMA]', '🏛️': '[CASAS]',
         '🐚': '[BUZIOS]', '🌑': '[SILENCIO]', '🎪': '[SALA]',
         '📲': '[WHATS]', '📥': '[BAIXAR]', '📎': '[ANEXO]',
+        '🌀': '[REGRESSAO]', '🔑': '[CHAVE]', '☯': '[POLAR]',
         '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
         '…': '...', '·': '.', '‧': '.', '⋅': '.',
@@ -1081,6 +1211,9 @@ def _fonte(tamanho):
     except Exception:
         return ImageFont.load_default()
 
+def sanitizar_titulo_mesa(texto):
+    return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
+
 def _layout_mesa(metodo, n_posicoes):
     if metodo == "Linha de 3 Cartas" and n_posicoes == 3:
         return [(500, 540), (800, 540), (1100, 540)], (240, 380)
@@ -1191,9 +1324,6 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     draw.text((largura // 2, altura - 52), rodape, font=fonte_pos, fill=(200, 190, 160), anchor="mm")
     return img
 
-def sanitizar_titulo_mesa(texto):
-    return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
-
 # ==========================================
 # MESA VISUAL DOS BÚZIOS (PIL)
 # ==========================================
@@ -1286,6 +1416,105 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
     return img
 
 # ==========================================
+# v5.5: MESA VISUAL DA REGRESSÃO (PIL)
+# ==========================================
+def gerar_imagem_mesa_regressao(tiragem, metodo, espelho=False):
+    """Desenha as 4 colunas-setores com as cartas caídas e o Espelho como lente central."""
+    largura, altura = 1600, 1000
+    img = Image.new("RGB", (largura, altura), (36, 32, 52))
+    draw = ImageDraw.Draw(img)
+
+    draw.rectangle([16, 16, largura - 16, altura - 16], outline=(212, 175, 55), width=3)
+    draw.rectangle([26, 26, largura - 26, altura - 26], outline=(229, 228, 226), width=1)
+
+    fonte_tit = _fonte(30)
+    fonte_hdr = _fonte(21)
+    fonte_hdr2 = _fonte(15)
+    fonte_nm = _fonte(18)
+    fonte_kw = _fonte(15)
+    fonte_tag = _fonte(13)
+
+    draw.text((largura // 2, 58), sanitizar_titulo_mesa(metodo),
+              font=fonte_tit, fill=(240, 236, 250), anchor="mm")
+
+    col_x = {1: 250, 2: 620, 3: 980, 4: 1350}
+
+    for sid in (1, 2, 3, 4):
+        sec = REGRESSAO_SETORES.get(sid, {})
+        rgb = _hex_rgb(sec.get("hex"))
+        x = col_x[sid]
+        draw.rounded_rectangle([x - 160, 92, x + 160, 150], radius=14, fill=rgb)
+        txt_cor = (255, 255, 255) if _luminancia(rgb) < 150 else (40, 32, 20)
+        draw.text((x, 112), f"SETOR {sid}: {str(sec.get('nome', '')).upper()}",
+                  font=fonte_hdr, fill=txt_cor, anchor="mm")
+        draw.text((x, 136), str(sec.get("pergunta", "")),
+                  font=fonte_hdr2, fill=txt_cor, anchor="mm")
+
+    cw, ch = 170, 290
+    slot_y = {0: 330, 1: 690}
+
+    por_setor = {}
+    for t in tiragem:
+        por_setor.setdefault(t["setor"], []).append(t)
+
+    for sid, itens in por_setor.items():
+        x = col_x[sid]
+        sec = REGRESSAO_SETORES.get(sid, {})
+        borda = _hex_rgb(sec.get("hex"))
+        for k, t in enumerate(itens[:2]):
+            cy = slot_y[k]
+            cx = x
+            x0, y0, x1, y1 = cx - cw // 2, cy - ch // 2, cx + cw // 2, cy + ch // 2
+
+            draw.rounded_rectangle([x0 + 5, y0 + 7, x1 + 5, y1 + 7], radius=14, fill=(18, 15, 28))
+            arte = _imagem_carta_regressao(t["numero"])
+            if arte is not None:
+                if t["invertida"]:
+                    arte = arte.transpose(_ROT180)
+                ratio = min(cw / arte.width, ch / arte.height)
+                nw = max(1, int(arte.width * ratio))
+                nh = max(1, int(arte.height * ratio))
+                img.paste(arte.resize((nw, nh)), (cx - nw // 2, cy - nh // 2))
+            else:
+                draw.rounded_rectangle([x0, y0, x1, y1], radius=14,
+                                       fill=(246, 240, 224), outline=(120, 90, 40), width=3)
+                nome_ph = REGRESSAO_CARTAS.get(t["numero"], {}).get("nome", "?")
+                draw.text((cx, cy), sanitizar_titulo_mesa(nome_ph),
+                          font=fonte_nm, fill=(40, 30, 20), anchor="mm")
+
+            draw.rounded_rectangle([x0, y0, x1, y1], radius=14, outline=borda, width=4)
+            if t["invertida"]:
+                draw.rounded_rectangle([x0 - 5, y0 - 5, x1 + 5, y1 + 5], radius=16,
+                                       outline=(200, 160, 255), width=3)
+                draw.rounded_rectangle([x0, y0 - 24, x1, y0 - 4], radius=8, fill=(138, 123, 155))
+                draw.text((cx, y0 - 14), "INVERTIDA", font=fonte_tag, fill=(255, 255, 255), anchor="mm")
+
+            c = REGRESSAO_CARTAS.get(t["numero"], {})
+            draw.text((cx, y1 + 18), f"{t['numero']:02d} - {sanitizar_titulo_mesa(c.get('nome', ''))}",
+                      font=fonte_nm, fill=(240, 236, 250), anchor="mm")
+            draw.text((cx, y1 + 40), sanitizar_titulo_mesa(c.get("palavra_chave", "")),
+                      font=fonte_kw, fill=(200, 190, 220), anchor="mm")
+
+    if espelho:
+        ex, ey = 800, 480
+        ew, eh = 100, 170
+        draw.ellipse([ex - 90, ey - 95, ex + 90, ey + 95], outline=(229, 228, 226), width=3)
+        arte = _imagem_carta_regressao(44)
+        if arte is not None:
+            ratio = min(ew / arte.width, eh / arte.height)
+            nw = max(1, int(arte.width * ratio))
+            nh = max(1, int(arte.height * ratio))
+            img.paste(arte.resize((nw, nh)), (ex - nw // 2, ey - nh // 2))
+        draw.rounded_rectangle([ex - ew // 2, ey - eh // 2, ex + ew // 2, ey + eh // 2],
+                               radius=10, outline=(229, 228, 226), width=3)
+        draw.text((ex, ey + eh // 2 + 22), "O ESPELHO", font=fonte_nm, fill=(229, 228, 226), anchor="mm")
+        draw.text((ex, ey + eh // 2 + 42), "LENTE CENTRAL", font=fonte_tag, fill=(190, 180, 210), anchor="mm")
+
+    draw.text((largura // 2, altura - 24), "Mesa de Regressao - Lunara Terapias",
+              font=fonte_tag, fill=(190, 180, 210), anchor="mm")
+    return img
+
+# ==========================================
 # TABELAS BASE DO REGISTRO DE BÚZIOS
 # ==========================================
 def _df_jogada_vazio():
@@ -1331,6 +1560,12 @@ if "buz_df" not in st.session_state:
     st.session_state.buz_df = _df_jogada_vazio()
 if "buz_df_apoio" not in st.session_state:
     st.session_state.buz_df_apoio = _df_apoio_vazio()
+if "reg_mesa" not in st.session_state:
+    st.session_state.reg_mesa = None
+if "reg_resultado" not in st.session_state:
+    st.session_state.reg_resultado = None
+if "reg_dados" not in st.session_state:
+    st.session_state.reg_dados = None
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -1404,7 +1639,7 @@ with st.sidebar:
             "📱 WhatsApp (opcional, p/ envio)",
             value="",
             placeholder="Ex: 16 99999-0000",
-            help="Usado apenas para montar o link de envio com o seu consentimento do consulente.",
+            help="Usado apenas para montar o link de envio com o consentimento do consulente.",
         )
 
     st.markdown("---")
@@ -1438,8 +1673,8 @@ st.markdown(
     "##### *Interpretação oracular sintática, ética e profunda com Google Gemini*"
 )
 
-tab_nova, tab_buzios, tab_historico, tab_stats, tab_manuais = st.tabs(
-    ["🆕 Nova Leitura", "🐚 Búzios", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
+tab_nova, tab_buzios, tab_regressao, tab_historico, tab_stats, tab_manuais = st.tabs(
+    ["🆕 Nova Leitura", "🐚 Búzios", "🌀 Regressão", "📚 Histórico", "📊 Estatísticas", "📖 Manuais"]
 )
 
 # ========================
@@ -1455,6 +1690,7 @@ with tab_nova:
             - **Tarô Estruturado:** Distinção entre Arcanos Maiores e Menores.
             - **Sibilla Italiana:** 54 cartas com polaridade e fichas técnicas; cenas cotidianas lidas como narrativa.
             - **Búzios (Ifá):** búzios-cartas em 7 casas + Moeda; aberto fala, fechado recolhe (aba 🐚).
+            - **Regressão Terapêutica:** 4 colunas-setores + Espelho opcional; invertidas só na Sombra (aba 🌀).
             - **Regra Estrita para Magia:** NUNCA afirma demandas por uma carta isolada. Exige 2-3 cartas de sombra pesada alinhadas.
             - **Livre-Arbítrio Soberano:** O oráculo orienta, preservando a autonomia do consulente.
             """
@@ -1737,7 +1973,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
         st.markdown("---")
         st.markdown("### 💾 Exportar Relatório")
 
-        # v5.4: prepara mesa e PDF uma única vez para os botões e o WhatsApp
         mesa_para_pdf = st.session_state.get("mesa_img")
         pdf_bytes = None
         if mesa_para_pdf is None and dados.get("cartas"):
@@ -1782,7 +2017,6 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
         with st.expander("📋 Ver texto formatado para cópia rápida"):
             st.code(st.session_state.interpretacao_atual, language="markdown")
 
-        # v5.4: ponte WhatsApp (somente mesa OU mesa + explicação)
         bloco_whatsapp(
             dados,
             mesa_para_pdf,
@@ -2148,7 +2382,304 @@ ponto do consulente e apoios com o tema perguntado.
             )
 
 # ========================
-# TAB 3 - HISTÓRICO + COMPARATIVA TEMPORAL
+# TAB 3 - v5.5: REGRESSÃO TERAPÊUTICA
+# ========================
+with tab_regressao:
+    st.markdown("### 🌀 Oráculo de Regressão Terapêutica, Apometria e Memória de Alma")
+    st.caption(
+        "Ferramenta complementar de autoconhecimento e apoio terapêutico holístico. "
+        "NÃO substitui psicoterapia, psiquiatria ou medicina; não emite diagnósticos."
+    )
+
+    if not REGRESSAO_CARTAS:
+        st.warning(
+            "Arquivo `regressao.json` não encontrado na raiz do projeto. "
+            "Salve o JSON das 44 fichas ao lado do `app.py`."
+        )
+    else:
+        metodo_reg = st.selectbox(
+            "Método de tiragem",
+            options=list(REGRESSAO_METODOS.keys()),
+            key="reg_metodo_sel",
+        )
+        slots = REGRESSAO_METODOS[metodo_reg]
+        mk = "j4" if metodo_reg.startswith("Jornada") else "la"
+
+        st.caption(
+            "Cada coluna recebe **somente cartas do próprio setor**. "
+            "No Setor 3 (Sombra), marque **☯️ invertida** quando a carta cair com a face-sombra para cima. "
+            "O **Espelho (44)** é opcional: quando sai, vira a lente central da leitura."
+        )
+
+        contexto_reg = st.text_area(
+            "Contexto / queixa trazida pelo consulente (opcional, recomendado)",
+            height=100,
+            key="reg_contexto",
+            placeholder="Ex.: 'Sensação de repetir sempre o mesmo padrão nos relacionamentos...'",
+        )
+
+        if st.session_state.get("reg_sortear"):
+            st.session_state["reg_sortear"] = False
+            usados_sort = set()
+            for slot_id, setor, _rot in slots:
+                pool = [n for n in _cartas_do_setor(setor) if n not in usados_sort]
+                esc = random.choice(pool)
+                usados_sort.add(esc)
+                st.session_state[f"reg_{mk}_{slot_id}"] = _rotulo_regressao(esc)
+                st.session_state[f"reginv_{mk}_{slot_id}"] = bool(setor == 3 and random.random() < 0.4)
+            st.session_state[f"regesp_{mk}"] = bool(random.random() < 0.35)
+            st.session_state["reg_mesa"] = None
+            st.session_state["reg_resultado"] = None
+            st.rerun()
+
+        if st.session_state.get("reg_limpar"):
+            st.session_state["reg_limpar"] = False
+            for slot_id, _s, _r in slots:
+                st.session_state.pop(f"reg_{mk}_{slot_id}", None)
+                st.session_state.pop(f"reginv_{mk}_{slot_id}", None)
+            st.session_state.pop(f"regesp_{mk}", None)
+            st.session_state["reg_mesa"] = None
+            st.session_state["reg_resultado"] = None
+            st.rerun()
+
+        # ---------- registro por colunas-setores ----------
+        cols_ui = st.columns(4)
+        tiragem_reg = []
+        usados_reg = []
+
+        for ui_idx, setor_id in enumerate([1, 2, 3, 4]):
+            with cols_ui[ui_idx]:
+                sec = REGRESSAO_SETORES.get(setor_id, {})
+                cor = sec.get("hex", "#888888")
+                st.markdown(
+                    f"<span style='color:{cor};font-weight:800;font-size:15px;'>"
+                    f"SETOR {setor_id} · {str(sec.get('nome', '')).upper()}</span><br>"
+                    f"<small style='color:{cor};'>{sec.get('pergunta', '')}</small>",
+                    unsafe_allow_html=True,
+                )
+                for slot_id, sset, rot in [s for s in slots if s[1] == setor_id]:
+                    pool = [
+                        n for n in _cartas_do_setor(setor_id)
+                        if _rotulo_regressao(n) not in usados_reg
+                    ]
+                    opcoes = [PLACEHOLDER_CARTA] + [_rotulo_regressao(n) for n in pool]
+                    chave_sel = f"reg_{mk}_{slot_id}"
+                    val = st.session_state.get(chave_sel, PLACEHOLDER_CARTA)
+                    if val not in opcoes:
+                        val = PLACEHOLDER_CARTA
+                        st.session_state[chave_sel] = val
+                    esc = st.selectbox(
+                        rot,
+                        options=opcoes,
+                        index=opcoes.index(val),
+                        key=chave_sel,
+                    )
+                    inv = False
+                    if setor_id == 3:
+                        inv = st.checkbox("☯️ Saiu invertida", key=f"reginv_{mk}_{slot_id}")
+                    if esc != PLACEHOLDER_CARTA:
+                        usados_reg.append(esc)
+                        tiragem_reg.append({
+                            "slot": slot_id,
+                            "rotulo": rot,
+                            "setor": setor_id,
+                            "numero": _numero_do_rotulo_regressao(esc),
+                            "invertida": inv,
+                        })
+
+        espelho_reg = st.checkbox(
+            "🪞 O Espelho (44) saiu — posicionar como lente central da tiragem",
+            key=f"regesp_{mk}",
+        )
+
+        col_rb1, col_rb2, col_rb3, col_rb4 = st.columns(4)
+        with col_rb1:
+            if st.button("🎲 Sortear", use_container_width=True):
+                st.session_state["reg_sortear"] = True
+                st.rerun()
+        with col_rb2:
+            if st.button("🧹 Limpar", use_container_width=True):
+                st.session_state["reg_limpar"] = True
+                st.rerun()
+        with col_rb3:
+            btn_mesa_reg = st.button("🖼️ Gerar Mesa Visual", use_container_width=True)
+        with col_rb4:
+            btn_interp_reg = st.button(
+                "🌀 Interpretar Tiragem", type="primary", use_container_width=True
+            )
+
+        if btn_mesa_reg:
+            if not tiragem_reg:
+                st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
+            else:
+                st.session_state["reg_mesa"] = gerar_imagem_mesa_regressao(
+                    tiragem_reg, metodo_reg, espelho_reg
+                )
+
+        if st.session_state.get("reg_mesa") is not None:
+            st.image(
+                st.session_state["reg_mesa"],
+                caption="🌀 Mesa da tiragem de regressão (colunas-setores + lente central)",
+                use_container_width=True,
+            )
+
+        if btn_interp_reg:
+            erros_reg = []
+            if len(tiragem_reg) != len(slots):
+                erros_reg.append(
+                    f"Preencha todas as posições do método ({len(slots)} cartas): "
+                    f"{len(tiragem_reg)} preenchida(s)."
+                )
+            chave_reg = obter_chave_api()
+            if not chave_reg:
+                erros_reg.append("Chave de API não configurada (secrets.toml / Secrets do Cloud).")
+
+            if erros_reg:
+                for er in erros_reg:
+                    st.error(f"⚠️ {er}")
+            else:
+                linhas_reg = []
+                for t in tiragem_reg:
+                    c = REGRESSAO_CARTAS.get(t["numero"], {})
+                    bloco = (
+                        f"- {t['rotulo']}: {c.get('nome', '?')} "
+                        f"(palavra-chave: {c.get('palavra_chave', '')})\n"
+                        f"  Diagnóstico clínico: {c.get('diagnostico_clinico', '')}\n"
+                        f"  Mensagem da carta: \"{c.get('mensagem', '')}\""
+                    )
+                    if t["invertida"]:
+                        inv = c.get("polaridade", {}).get("inversa", {})
+                        bloco += (
+                            f"\n  ⚠️ CARTA INVERTIDA — face-sombra ativa: {inv.get('rotulo', '')}\n"
+                            f"  Frase-sombra: {inv.get('frase_sombra', '')}\n"
+                            f"  Comportamento: {inv.get('comportamento', '')}\n"
+                            f"  Presente oculto: {inv.get('presente_oculto', '')}"
+                        )
+                    linhas_reg.append(bloco)
+
+                bloco_espelho = ""
+                if espelho_reg:
+                    c44 = REGRESSAO_CARTAS.get(44, {})
+                    bloco_espelho = (
+                        f"\n\nO ESPELHO (44) SAIU — lente central da tiragem:\n"
+                        f"  Mensagem: \"{c44.get('mensagem', '')}\"\n"
+                        f"  Pergunta clínica: {c44.get('interpretacao_clinica', '')}\n"
+                        f"  Função: {c44.get('funcao_na_tiragem', '')}"
+                    )
+                else:
+                    bloco_espelho = "\n\nO Espelho (44) NÃO saiu nesta tiragem."
+
+                prompt_reg = f"""
+MÉTODO: {metodo_reg}
+CONTEXTO / QUEIXA DO CONSULENTE: {contexto_reg.strip() or '(não informado)'}
+CONSULENTE: {nome_consulente or 'Não informado'}
+
+CARTAS TIRADAS, POR COLUNA-SETOR:
+{chr(10).join(linhas_reg)}
+{bloco_espelho}
+
+Interprete a tiragem conforme as regras da system instruction, aplicando a matriz de
+cruzamento [S1+S2], [S2+S3] e [S3+S4] e fechando com o manejo clínico.
+"""
+
+                try:
+                    client_reg = genai.Client(api_key=chave_reg)
+                    with st.spinner("🌀 Acessando os registros da alma..."):
+                        resp_reg = chamar_gemini(
+                            client_reg,
+                            prompt_reg,
+                            types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_REGRESSAO,
+                                temperature=0.7,
+                            ),
+                        )
+                    if resp_reg and resp_reg.text:
+                        st.session_state["reg_resultado"] = resp_reg.text
+                        if st.session_state.get("reg_mesa") is None:
+                            st.session_state["reg_mesa"] = gerar_imagem_mesa_regressao(
+                                tiragem_reg, metodo_reg, espelho_reg
+                            )
+                        cartas_hist = {}
+                        for t in tiragem_reg:
+                            c = REGRESSAO_CARTAS.get(t["numero"], {})
+                            sufixo = " (invertida)" if t["invertida"] else ""
+                            cartas_hist[t["rotulo"]] = f"{t['numero']:02d} · {c.get('nome', '?')}{sufixo}"
+                        if espelho_reg:
+                            cartas_hist["Espelho (lente central)"] = "44 · O Espelho"
+
+                        st.session_state["reg_dados"] = {
+                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "nome_consulente": nome_consulente,
+                            "signo_consulente": signo_consulente,
+                            "modo_atendimento": modo_atendimento,
+                            "oraculo": "Regressão Terapêutica",
+                            "metodo": metodo_reg + (" + O Espelho" if espelho_reg else ""),
+                            "tom_leitura": "Mentor de Regressão",
+                            "pergunta": contexto_reg.strip() or "(contexto não informado)",
+                            "cartas": cartas_hist,
+                            "interpretacao": resp_reg.text,
+                            "telefone": whatsapp_consulente,
+                        }
+                        save_reading(st.session_state["reg_dados"])
+                        st.rerun()
+                    else:
+                        st.error("❌ Não foi possível gerar a interpretação.")
+                except Exception as e:
+                    if eh_erroro_transitorio(e):
+                        st.error(
+                            "❌ **Alta demanda no Gemini (503/429).** "
+                            "Aguarde 1–2 minutos e tente novamente."
+                        )
+                    else:
+                        st.error(f"❌ **Erro na consulta:** `{str(e)}`")
+
+        if st.session_state.get("reg_resultado") and st.session_state.get("reg_dados"):
+            st.markdown("---")
+            st.markdown("## 🌀 Leitura da Tiragem de Regressão")
+            with st.container(border=True):
+                st.markdown(st.session_state["reg_resultado"])
+
+            st.markdown("### 💾 Exportar")
+            pdf_reg = None
+            try:
+                pdf_reg = gerar_pdf_leitura(
+                    dados_leitura=st.session_state["reg_dados"],
+                    modo_profissional=modo_profissional,
+                    dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
+                    imagem_mesa=st.session_state.get("reg_mesa"),
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.download_button(
+                    "📄 Baixar leitura (.txt)",
+                    data=st.session_state["reg_resultado"].encode("utf-8-sig"),
+                    file_name=f"regressao_{_slug(st.session_state['reg_dados']['nome_consulente'])}_{_carimbo(st.session_state['reg_dados']['data_hora'])}.txt",
+                    mime="text/plain; charset=utf-8",
+                    use_container_width=True,
+                )
+            with col_r2:
+                if pdf_reg:
+                    st.download_button(
+                        "📕 Baixar relatório (.pdf)",
+                        data=pdf_reg,
+                        file_name=f"regressao_{_slug(st.session_state['reg_dados']['nome_consulente'])}_{_carimbo(st.session_state['reg_dados']['data_hora'])}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+
+            bloco_whatsapp(
+                st.session_state["reg_dados"],
+                st.session_state.get("reg_mesa"),
+                pdf_reg,
+                "regressao",
+                oraculista=nome_oraculista if modo_profissional else "",
+            )
+
+# ========================
+# TAB 4 - HISTÓRICO + COMPARATIVA TEMPORAL
 # ========================
 with tab_historico:
     st.markdown("### 📚 Leituras Salvas")
@@ -2306,7 +2837,7 @@ Realize a Análise Comparativa Temporal completa.
                         st.rerun()
 
 # ========================
-# TAB 4 - ESTATÍSTICAS
+# TAB 5 - ESTATÍSTICAS
 # ========================
 with tab_stats:
     st.markdown("### 📊 Painel de Estatísticas do Oraculista")
@@ -2377,7 +2908,7 @@ with tab_stats:
             p3.metric("Negativas [−]", pol.get("Negativa", 0))
 
 # ========================
-# TAB 5 - MANUAIS
+# TAB 6 - MANUAIS
 # ========================
 with tab_manuais:
     st.markdown("### 📖 Manuais do Terapeuta")
@@ -2426,8 +2957,8 @@ with tab_manuais:
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.4 • Google Gemini API ({MODELO_GEMINI}) • "
-    f"Cigano · Tarô · Sibilla · Búzios • Sala de Estudo: Lumina • Envio via WhatsApp • "
+    f"Auxiliar de Cartomancia & Oráculos v5.5 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Cigano · Tarô · Sibilla · Búzios · Regressão • Sala de Estudo: Lumina • Envio via WhatsApp • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
     unsafe_allow_html=True,
