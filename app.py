@@ -1806,10 +1806,11 @@ with tab_nova:
                 st.rerun()
         with col_b3:
             if st.button(
-                "🖼️ Gerar Mesa Visual",
-                use_container_width=True,
-                help="Desenha a mesa com as cartas (e medalhões) para o relatório",
-            ):
+        "🖼️ Gerar Mesa Visual",
+        use_container_width=True,
+        key="btn_mesa_nova",
+        help="Desenha a mesa com as cartas (e medalhões) para o relatório",
+         ):
                 if not cartas_selecionadas:
                     st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
                 else:
@@ -2164,10 +2165,10 @@ with tab_buzios:
 
         col_a1, col_a2 = st.columns(2)
         with col_a1:
-            btn_mesa_buz = st.button("🖼️ Gerar Mesa Visual", type="secondary", use_container_width=True)
+            btn_mesa_buz = st.button("🖼️ Gerar Mesa Visual", type="secondary", use_container_width=True, key="btn_mesa_buz")
         with col_a2:
             btn_interp_buz = st.button("🐚 Interpretar Jogada", type="primary", use_container_width=True)
-
+            
         jogada_buz = []
         casas_faltando = []
         for idx_linha, row in df_jogada.iterrows():
@@ -2502,7 +2503,7 @@ with tab_regressao:
                 st.session_state["reg_limpar"] = True
                 st.rerun()
         with col_rb3:
-            btn_mesa_reg = st.button("🖼️ Gerar Mesa Visual", use_container_width=True)
+            btn_mesa_reg = st.button("🖼️ Gerar Mesa Visual", use_container_width=True, key="btn_mesa_reg")
         with col_rb4:
             btn_interp_reg = st.button(
                 "🌀 Interpretar Tiragem", type="primary", use_container_width=True
