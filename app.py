@@ -1,5 +1,5 @@
 """
-Auxiliar de Cartomancia & Oráculos v5.6
+Auxiliar de Cartomancia & Oráculos v5.5
 Aplicação Streamlit profissional para análise e interpretação aprofundada de tiragens
 utilizando a biblioteca oficial google-genai.
 
@@ -21,9 +21,6 @@ v5.5: ORÁCULO DE REGRESSÃO — aba própria com 4 colunas-setores coloridas,
       tiragens Jornada de 4 e Linha Apométrica, cartas invertidas do Setor 3
       (face sombra + presente oculto), Espelho (44) opcional como lente central,
       mesa visual PIL com arte girada e Mentor clínico-apométrico.
-v5.6: CORREÇÕES CRÍTICAS — fuso horário de Brasília (America/Sao_Paulo),
-      fonte com suporte a acentos (DejaVu/Arial) nas mesas visuais,
-      botão Limpar funcional com contador de sessão, Tiragem Relâmpago.
 """
 
 import os
@@ -35,7 +32,7 @@ import random
 import sqlite3
 import unicodedata
 from collections import Counter
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -112,42 +109,6 @@ REGRAS_BUZIOS = [
 ]
 
 # ==========================================
-# FUNÇÕES AUXILIARES - FUSO HORÁRIO E FONTES
-# ==========================================
-def _agora_brasilia():
-    """Retorna o horário atual no fuso de Brasília (America/Sao_Paulo)."""
-    try:
-        # Tenta usar zoneinfo (Python 3.9+)
-        from zoneinfo import ZoneInfo
-        return datetime.now(ZoneInfo("America/Sao_Paulo"))
-    except Exception:
-        # Fallback para offset manual (-3 horas)
-        return datetime.now(timezone(timedelta(hours=-3)))
-
-def _carregar_fonte(tamanho):
-    """Carrega uma fonte que suporta acentos (DejaVu no Linux, Arial no Windows)."""
-    # Caminhos comuns no Streamlit Cloud (Linux) e Windows local
-    caminhos_fontes = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "arial.ttf",
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "segoeui.ttf",
-        "C:\\Windows\\Fonts\\segoeui.ttf",
-    ]
-    for caminho in caminhos_fontes:
-        try:
-            return ImageFont.truetype(caminho, tamanho)
-        except Exception:
-            continue
-    # Se nenhuma funcionar, usa a padrão (que pode perder acentos)
-    try:
-        return ImageFont.load_default(size=tamanho)
-    except Exception:
-        return ImageFont.load_default()
-
-# ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
 # ==========================================
 def obter_chave_api():
@@ -181,7 +142,7 @@ MENSAGEM_WHATS_MESA = (
     "Olá, {nome}! 🌙\n"
     "Segue a imagem da mesa da sua leitura de {data} (*{tema}*).\n"
     "\n"
-    " Na mesa:\n{cartas}\n"
+    "🃏 Na mesa:\n{cartas}\n"
     "\n"
     "Guarde esta imagem como espelho do seu momento. ✨\n"
     "Com carinho, {oraculista}.\n"
@@ -237,7 +198,7 @@ def bloco_whatsapp(dados, mesa_img, pdf_bytes, chave_ui, oraculista=""):
 
     col_w1, col_w2 = st.columns(2)
     with col_w1:
-        if modo.startswith("️"):
+        if modo.startswith("🖼️"):
             if mesa_img is not None:
                 buf = BytesIO()
                 mesa_img.save(buf, format="PNG")
@@ -661,7 +622,7 @@ O sistema já forneceu as cartas tiradas e seus significados exatos (incluindo a
 - Setor 4 (Ouro): INTEGRAÇÃO (COMO CURAR / Chave Apométrica).
 - Carta 44 (Prata): O ESPELHO (Coringa / Lente Central). Se presente, leia todas as outras cartas através da projeção inconsciente e autorresponsabilidade que ela evoca.
 
-### ️ FLUXO DA SESSÃO E ESTRUTURA DA RESPOSTA
+### 🗣️ FLUXO DA SESSÃO E ESTRUTURA DA RESPOSTA
 Construa uma narrativa coesa e profunda, alternando entre termos psicológicos (esquemas, arquétipos, regulação vagal) e holísticos (alma, cordões sutis, egrégora). Siga rigorosamente esta estrutura em Markdown:
 
 #### 🌬️ 1. Abertura e Ancoragem (Teoria Polivagal)
@@ -676,7 +637,7 @@ NÃO leia as cartas de forma isolada. Conecte-as sistemicamente:
 #### 🪞 3. O Espelho (Se a carta 44 estiver na mesa)
 Se o Espelho foi tirado, aponte o que no outro ou no mundo externo está refletindo uma sombra não integrada no consulente. Confronte com gentileza e autorresponsabilidade.
 
-####  4. A Intervenção Apométrica (O Protocolo)
+#### ⚡ 4. A Intervenção Apométrica (O Protocolo)
 Prescreva o "Pulso Apométrico". Ensine o consulente a estalar os dedos 7 vezes (ou bater levemente no peito) enquanto repete o comando de transmutação baseado na carta do Setor 4.
 *Exemplo de comando:* "Desfazendo contratos de [tema da carta do Setor 3] e ancorando a [palavra-chave do Setor 4]. Em pulso de luz: limpando 1, 2, 3, 4, 5, 6, 7. Está feito."
 
@@ -864,7 +825,7 @@ REGRAS:
 - Linguagem clara, acolhedora e organizada.
 
 ESTRUTURA DA RESPOSTA:
-###  1. O Que Se Confirmou
+### ⏳ 1. O Que Se Confirmou
 ### 🔄 2. O Que Se Transformou
 ### 🌱 3. O Que Permanece Latente
 ### 🧭 4. Releitura das Cartas Originais
@@ -880,36 +841,36 @@ def sanitizar_texto_pdf(texto):
         return ""
 
     replacements = {
-        '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '️': '[5.]',
+        '🌟': '[1.]', '🔍': '[2.]', '🎯': '[3.]', '🛡️': '[4.]', '🕊️': '[5.]',
         '✨': '*', '⭐': '*', '💫': '*', '🌙': '*', '☀️': '*',
         '—': '-', '–': '-', '―': '-', '−': '-',
         '‐': '-', '‑': '-', '‒': '-', '⁃': '-',
         '♠': ' (Espadas)', '♥': ' (Copas)',
-        '': ' (Paus)', '♦': ' (Ouros)',
+        '♣': ' (Paus)', '♦': ' (Ouros)',
         '→': '->', '←': '<-', '↔': '<->', '⇒': '=>',
         '⇐': '<=', '⇔': '<=>', '➔': '->', '➜': '->',
         '•': '*', '✦': '*', '❖': '*', '◦': '*',
         '▪': '*', '▫': '*', '○': '*', '●': '*',
-        '️': '[!]', '❌': '[X]', '✅': '[OK]',
-        '': '[?]', '❗': '[!]', '⭕': '[O]', '': '[X]',
-        '': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
+        '⚠️': '[!]', '❌': '[X]', '✅': '[OK]',
+        '❓': '[?]', '❗': '[!]', '⭕': '[O]', '✖': '[X]',
+        '🔮': '[ORACULO]', '📜': '[DOC]', '📝': '[NOTA]',
         '💾': '[SALVAR]', '📄': '[PG]', '📷': '[CAM]',
         '🎴': '[CARTA]', '🃏': '[BARALHO]', '🎲': '[DADO]',
         '⏳': '[TEMPO]', '🔄': '[CICLO]', '🌱': '[GERME]',
         '🧭': '[BUSSOLA]', '📊': '[GRAFICO]', '📈': '[GRAFICO]',
-        '📚': '[LIVROS]', '📖': '[LIVRO]', '': '[LIVRO]',
-        '️': '[IMG]', '🔒': '[TRAVA]', '⚖️': '[BALANCA]',
+        '📚': '[LIVROS]', '📖': '[LIVRO]', '📕': '[LIVRO]',
+        '🖼️': '[IMG]', '🔒': '[TRAVA]', '⚖️': '[BALANCA]',
         '👤': '[PESSOA]', '🧑': '[PESSOA]', '🕐': '[RELOGIO]',
-        '🔗': '[LINK]', '': '[IDEIA]', '📂': '[PASTA]',
+        '🔗': '[LINK]', '💡': '[IDEIA]', '📂': '[PASTA]',
         '🗑️': '[LIXO]', '🧹': '[LIMPEZA]', '🎓': '[ESTUDO]',
         '📐': '[GEOMETRIA]', '🧠': '[MENTE]', '🪞': '[ESPELHO]',
-        '🐴': '[CAVALO]', '🧵': '[TRAMA]', '️': '[CASAS]',
-        '': '[BUZIOS]', '🌑': '[SILENCIO]', '🎪': '[SALA]',
+        '🐴': '[CAVALO]', '🧵': '[TRAMA]', '🏛️': '[CASAS]',
+        '🐚': '[BUZIOS]', '🌑': '[SILENCIO]', '🎪': '[SALA]',
         '📲': '[WHATS]', '📥': '[BAIXAR]', '📎': '[ANEXO]',
-        '🌀': '[REGRESSAO]', '': '[CHAVE]', '☯': '[POLAR]',
+        '🌀': '[REGRESSAO]', '🔑': '[CHAVE]', '☯': '[POLAR]',
         '“': '"', '”': '"', '‘': "'", '’': "'",
         '‹': '<', '›': '>', '«': '<<', '»': '>>',
-        '…': '...', '·': '.', '‧': '.', '': '.',
+        '…': '...', '·': '.', '‧': '.', '⋅': '.',
         '⁄': '/', '∕': '/', '⁎': '*',
         '\u00a0': ' ', '\u2002': ' ', '\u2003': ' ',
         '\u2009': ' ', '\u200b': '',
@@ -1240,8 +1201,14 @@ def _medalhao_imagem(indice):
 # ==========================================
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
 # ==========================================
+def _fonte(tamanho):
+    try:
+        return ImageFont.load_default(size=tamanho)
+    except Exception:
+        return ImageFont.load_default()
+
 def sanitizar_titulo_mesa(texto):
-    return texto.replace("", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
+    return texto.replace("⏳", "*").replace("—", "-").replace("♠", "").replace("♥", "").replace("♣", "").replace("♦", "")
 
 def _layout_mesa(metodo, n_posicoes):
     if metodo == "Linha de 3 Cartas" and n_posicoes == 3:
@@ -1296,11 +1263,10 @@ def gerar_imagem_mesa(cartas_ordem, metodo, oraculo):
     draw.rectangle([18, 18, largura - 18, altura - 18], outline=(196, 168, 90), width=4)
     draw.rectangle([30, 30, largura - 30, altura - 30], outline=(196, 168, 90), width=2)
 
-    # USAR FONTE COM SUPORTE A ACENTOS
-    fonte_titulo = _carregar_fonte(34)
-    fonte_carta = _carregar_fonte(24)
-    fonte_pos = _carregar_fonte(20)
-    fonte_num = _carregar_fonte(34)
+    fonte_titulo = _fonte(34)
+    fonte_carta = _fonte(24)
+    fonte_pos = _fonte(20)
+    fonte_num = _fonte(34)
 
     titulo = f"{metodo}  -  {oraculo}"
     draw.text((largura // 2, 62), sanitizar_titulo_mesa(titulo), font=fonte_titulo, fill=(240, 230, 200), anchor="mm")
@@ -1372,11 +1338,11 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
         for i, nome_casa in enumerate(BUZIOS_CASAS):
             x, y = _BUZIOS_POSICOES[i]
             draw_s.text((x, y - 120), sanitizar_titulo_mesa(nome_casa.split("·")[-1].strip()),
-                        font=_carregar_fonte(26), fill=(230, 215, 180), anchor="mm")
+                        font=_fonte(26), fill=(230, 215, 180), anchor="mm")
 
     draw = ImageDraw.Draw(img)
-    fonte_ent = _carregar_fonte(20)
-    fonte_leg = _carregar_fonte(17)
+    fonte_ent = _fonte(20)
+    fonte_leg = _fonte(17)
 
     por_casa = {}
     for item in jogada:
@@ -1442,7 +1408,7 @@ def gerar_imagem_mesa_buzios(jogada, apoio=None, tema=""):
 
     draw = ImageDraw.Draw(img)
     draw.text((L - 40, L - 30), "Mesa de Buzios - Lunara Terapias",
-              font=_carregar_fonte(18), fill=(210, 195, 160), anchor="rm")
+              font=_fonte(18), fill=(210, 195, 160), anchor="rm")
     return img
 
 # ==========================================
@@ -1457,13 +1423,12 @@ def gerar_imagem_mesa_regressao(tiragem, metodo, espelho=False):
     draw.rectangle([16, 16, largura - 16, altura - 16], outline=(212, 175, 55), width=3)
     draw.rectangle([26, 26, largura - 26, altura - 26], outline=(229, 228, 226), width=1)
 
-    # USAR FONTE COM SUPORTE A ACENTOS
-    fonte_tit = _carregar_fonte(30)
-    fonte_hdr = _carregar_fonte(21)
-    fonte_hdr2 = _carregar_fonte(15)
-    fonte_nm = _carregar_fonte(18)
-    fonte_kw = _carregar_fonte(15)
-    fonte_tag = _carregar_fonte(13)
+    fonte_tit = _fonte(30)
+    fonte_hdr = _fonte(21)
+    fonte_hdr2 = _fonte(15)
+    fonte_nm = _fonte(18)
+    fonte_kw = _fonte(15)
+    fonte_tag = _fonte(13)
 
     draw.text((largura // 2, 58), sanitizar_titulo_mesa(metodo),
               font=fonte_tit, fill=(240, 236, 250), anchor="mm")
@@ -1566,7 +1531,7 @@ def _df_apoio_vazio():
 # ==========================================
 st.set_page_config(
     page_title="Auxiliar de Cartomancia & Oráculos",
-    page_icon="",
+    page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -1628,7 +1593,7 @@ with st.sidebar:
             nome_oraculista = ""
             contato_oraculista = ""
 
-    with st.expander(" Oráculo e Método", expanded=True):
+    with st.expander("🃏 Oráculo e Método", expanded=True):
         oracle_choice = st.selectbox(
             "Sistema Simbólico",
             options=[
@@ -1651,14 +1616,14 @@ with st.sidebar:
         else:
             num_free_cards = 0
 
-    with st.expander(" Tom da Leitura", expanded=True):
+    with st.expander("🎨 Tom da Leitura", expanded=True):
         tom_leitura = st.selectbox(
             "Estilo de Interpretação",
             options=list(SYSTEM_INSTRUCTIONS.keys()),
             index=0,
         )
 
-    with st.expander("🧑 Dados do Consulente", expanded=True):
+    with st.expander("🧑‍ Dados do Consulente", expanded=True):
         nome_consulente = st.text_input(
             "Nome do Consulente *" if modo_profissional else "Nome do Consulente",
             value="",
@@ -1669,7 +1634,7 @@ with st.sidebar:
             placeholder="Ex: Áries, 15/03/1990"
         )
         whatsapp_consulente = st.text_input(
-            " WhatsApp (opcional, p/ envio)",
+            "📱 WhatsApp (opcional, p/ envio)",
             value="",
             placeholder="Ex: 16 99999-0000",
             help="Usado apenas para montar o link de envio com o consentimento do consulente.",
@@ -1701,7 +1666,7 @@ with st.sidebar:
 # ==========================================
 # ÁREA PRINCIPAL - COM TABS
 # ==========================================
-st.title(" Auxiliar de Cartomancia & Oráculos")
+st.title("🔮 Auxiliar de Cartomancia & Oráculos")
 st.markdown(
     "##### *Interpretação oracular sintática, ética e profunda com Google Gemini*"
 )
@@ -1729,7 +1694,7 @@ with tab_nova:
             """
         )
 
-    st.markdown("###  Dados da Tiragem")
+    st.markdown("### 📝 Dados da Tiragem")
     col1, col2 = st.columns([1, 1], gap="medium")
 
     with col1:
@@ -1839,11 +1804,11 @@ with tab_nova:
                 st.rerun()
         with col_b3:
             if st.button(
-                "🖼️ Gerar Mesa Visual",
-                use_container_width=True,
-                key="btn_mesa_nova",
-                help="Desenha a mesa com as cartas (e medalhões) para o relatório",
-            ):
+        "🖼️ Gerar Mesa Visual",
+        use_container_width=True,
+        key="btn_mesa_nova",
+        help="Desenha a mesa com as cartas (e medalhões) para o relatório",
+         ):
                 if not cartas_selecionadas:
                     st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
                 else:
@@ -1860,7 +1825,7 @@ with tab_nova:
             )
 
     analyze_button = st.button(
-        " Analisar Tiragem",
+        "🔮 Analisar Tiragem",
         type="primary",
         use_container_width=True
     )
@@ -1961,8 +1926,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
 
                 if response and response.text:
                     interpretation_text = response.text
-                    # USAR FUSO HORÁRIO DE BRASÍLIA
-                    data_hora = _agora_brasilia().strftime("%d/%m/%Y %H:%M")
+                    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
 
                     dados_leitura = {
                         "data_hora": data_hora,
@@ -2042,7 +2006,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
         with col_exp2:
             if pdf_bytes:
                 st.download_button(
-                    label=" Baixar Relatório (.pdf)",
+                    label="📕 Baixar Relatório (.pdf)",
                     data=pdf_bytes,
                     file_name=f"relatorio_{_slug(dados['nome_consulente'])}_{_carimbo(dados['data_hora'])}.pdf",
                     mime="application/pdf",
@@ -2060,8 +2024,943 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
             oraculista=nome_oraculista if modo_profissional else "",
         )
 
-# ... (o restante do código continua igual - abas Búzios, Regressão, Histórico, Estatísticas e Manuais)
-# ... (mantendo todas as correções de fuso horário com _agora_brasilia() e fontes com _carregar_fonte())
+# ========================
+# TAB 2 - BÚZIOS
+# ========================
+with tab_buzios:
+    st.markdown("### 🐚 Mesa de Búzios (Merindilogun · tradição Ifá)")
+    st.caption(
+        "Ferramenta de estudo e apoio à interpretação. Não substitui o jogo de um sacerdote "
+        "iniciado, nem orientações médicas, jurídicas ou psicológicas profissionais."
+    )
+
+    if not BUZIOS_DADOS:
+        st.warning(
+            "Arquivo `buzios.json` não encontrado na raiz do projeto. "
+            "Salve o JSON das 46 fichas (23 cartas × aberto/fechado) ao lado do `app.py`."
+        )
+    else:
+        col_t1, col_t2 = st.columns([2, 3])
+        with col_t1:
+            tema_buzios = st.selectbox("Tema da leitura", options=TEMAS_BUZIOS, key="buz_tema")
+        with col_t2:
+            tema_livre_buzios = st.text_input(
+                "Descreva o tema (quando 'Outro')",
+                key="buz_tema_livre",
+                disabled=(tema_buzios != TEMAS_BUZIOS[-1]),
+            )
+
+        col_r1, col_r2 = st.columns([2, 3])
+        with col_r1:
+            regra_buzios = st.selectbox(
+                "Regra da jogada",
+                options=REGRAS_BUZIOS,
+                index=0,
+                key="buz_regra",
+                help=(
+                    "16 caídos = clássico Merindilogun (4 cartas ficam de fora por jogada). "
+                    "20 caídos = todos os orixás + consulente caem sempre; mudam casa e estado."
+                ),
+            )
+        esperados_buz = 16 if regra_buzios.startswith("16") else 20
+        with col_r2:
+            st.caption(
+                f"Validação ativa: exatamente **{esperados_buz}** cartas marcadas como "
+                "Aberto/Fechado, com casa definida e a **20 · Consulente** entre elas."
+            )
+
+        st.markdown("#### 🎲 Registro da jogada — carta por carta, em ordem de número")
+        st.caption(
+            f"Para cada carta que **caiu na mesa**, marque **Aberto** ou **Fechado** e a **casa** onde caiu. "
+            f"Deixe **Não caiu** nas demais. Pela regra escolhida, exatamente **{esperados_buz}** devem cair, "
+            "e a **20 · Consulente** precisa estar entre elas (ela marca o ponto do consulente). "
+            "Ex.: *01 · Exu — Aberto — Casa 6 · Iemanjá*."
+        )
+
+        df_jogada = st.data_editor(
+            st.session_state.buz_df,
+            num_rows="fixed",
+            hide_index=True,
+            use_container_width=True,
+            key="buz_editor",
+            column_config={
+                "Carta": st.column_config.TextColumn("Carta", disabled=True, width="medium"),
+                "Estado": st.column_config.SelectboxColumn(
+                    "Estado",
+                    options=["Não caiu", "Aberto", "Fechado"],
+                    required=True,
+                ),
+                "Casa": st.column_config.SelectboxColumn(
+                    "Casa onde caiu",
+                    options=["—"] + BUZIOS_CASAS,
+                    required=True,
+                ),
+            },
+        )
+
+        st.markdown("#### 🃏 Cartas de apoio (Zé Pilintra — fora da contagem)")
+        df_apoio = st.data_editor(
+            st.session_state.buz_df_apoio,
+            num_rows="fixed",
+            hide_index=True,
+            use_container_width=True,
+            key="buz_editor_apoio",
+            column_config={
+                "Apoio": st.column_config.SelectboxColumn(
+                    "Carta de apoio",
+                    options=["—"] + [_rotulo_buzios(c) for c in BUZIOS_CARTAS_APOIO],
+                    required=True,
+                ),
+                "Estado": st.column_config.SelectboxColumn(
+                    "Estado",
+                    options=["Aberto", "Fechado"],
+                    required=True,
+                ),
+            },
+        )
+
+        col_x1, col_x2 = st.columns(2)
+        with col_x1:
+            btn_exemplo_buz = st.button(
+                "🎲 Preencher jogada-exemplo", use_container_width=True,
+                help="Gera uma jogada válida aleatória para teste/estudo",
+            )
+        with col_x2:
+            btn_limpar_buz = st.button("🧹 Limpar jogada", use_container_width=True)
+
+        if btn_exemplo_buz:
+            if esperados_buz == 16:
+                ids_ex = random.sample([c for c in BUZIOS_CARTAS_MESA if c != 20], 15) + [20]
+            else:
+                ids_ex = list(BUZIOS_CARTAS_MESA)
+            novo_df = _df_jogada_vazio()
+            for cid in ids_ex:
+                linha = BUZIOS_CARTAS_MESA.index(cid)
+                novo_df.loc[linha, "Estado"] = random.choice(["Aberto", "Fechado"])
+                novo_df.loc[linha, "Casa"] = random.choice(BUZIOS_CASAS)
+            st.session_state.buz_df = novo_df
+            apoio_ex = random.choice(BUZIOS_CARTAS_APOIO)
+            novo_apoio = _df_apoio_vazio()
+            novo_apoio.loc[0, "Apoio"] = _rotulo_buzios(apoio_ex)
+            novo_apoio.loc[0, "Estado"] = random.choice(["Aberto", "Fechado"])
+            st.session_state.buz_df_apoio = novo_apoio
+            st.session_state.pop("buz_editor", None)
+            st.session_state.pop("buz_editor_apoio", None)
+            st.session_state["buz_resultado"] = None
+            st.session_state["buz_mesa"] = None
+            st.rerun()
+
+        if btn_limpar_buz:
+            st.session_state.buz_df = _df_jogada_vazio()
+            st.session_state.buz_df_apoio = _df_apoio_vazio()
+            st.session_state.pop("buz_editor", None)
+            st.session_state.pop("buz_editor_apoio", None)
+            st.session_state["buz_resultado"] = None
+            st.session_state["buz_mesa"] = None
+            st.rerun()
+
+        st.markdown("---")
+
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            btn_mesa_buz = st.button("🖼️ Gerar Mesa Visual", type="secondary", use_container_width=True, key="btn_mesa_buz")
+        with col_a2:
+            btn_interp_buz = st.button("🐚 Interpretar Jogada", type="primary", use_container_width=True)
+            
+        jogada_buz = []
+        casas_faltando = []
+        for idx_linha, row in df_jogada.iterrows():
+            if row["Estado"] in ("Aberto", "Fechado"):
+                cid = BUZIOS_CARTAS_MESA[idx_linha]
+                if row["Casa"] == "—":
+                    casas_faltando.append(_rotulo_buzios(cid))
+                    continue
+                jogada_buz.append({
+                    "carta": cid,
+                    "estado": row["Estado"],
+                    "casa": BUZIOS_CASAS.index(row["Casa"]),
+                })
+
+        apoio_buz = []
+        vistos_apoio = set()
+        for _, row in df_apoio.iterrows():
+            if row["Apoio"] != "—":
+                cid = _id_do_rotulo_buzios(row["Apoio"])
+                if cid and cid not in vistos_apoio:
+                    vistos_apoio.add(cid)
+                    apoio_buz.append({"carta": cid, "estado": row["Estado"]})
+
+        if btn_mesa_buz:
+            if len(jogada_buz) == 0:
+                st.warning("Registre ao menos um búzio caído antes de gerar a mesa.")
+            else:
+                st.session_state["buz_mesa"] = gerar_imagem_mesa_buzios(
+                    jogada_buz, apoio_buz, tema_buzios
+                )
+
+        if st.session_state.get("buz_mesa") is not None:
+            st.image(
+                st.session_state["buz_mesa"],
+                caption="🐚 Mesa da jogada (representação compacta)",
+                width=750,
+            )
+
+        if btn_interp_buz:
+            erros_buz = []
+            if casas_faltando:
+                erros_buz.append(
+                    "Defina a casa de: " + ", ".join(casas_faltando) + "."
+                )
+            if len(jogada_buz) != esperados_buz:
+                erros_buz.append(
+                    f"Pela regra escolhida ({regra_buzios}), a jogada precisa de exatamente "
+                    f"{esperados_buz} búzios caídos (atualmente: {len(jogada_buz)})."
+                )
+            ids_jogados = [j["carta"] for j in jogada_buz]
+            if 20 not in ids_jogados:
+                erros_buz.append(
+                    "A carta 20 (Consulente) precisa estar entre as caídas — ela marca o ponto do consulente."
+                )
+            chave_buz = obter_chave_api()
+            if not chave_buz:
+                erros_buz.append("Chave de API não configurada (secrets.toml / Secrets do Cloud).")
+
+            if erros_buz:
+                for eb in erros_buz:
+                    st.error(f"⚠️ {eb}")
+            else:
+                tot_ab = sum(1 for j in jogada_buz if j["estado"] == "Aberto")
+                tot_fe = len(jogada_buz) - tot_ab
+                cont_casa = Counter(j["casa"] for j in jogada_buz)
+                vazias = [idx for idx in range(8) if idx not in cont_casa]
+                consul = next(j for j in jogada_buz if j["carta"] == 20)
+
+                linhas_casa = []
+                for idx in range(8):
+                    itens = [j for j in jogada_buz if j["casa"] == idx]
+                    if not itens:
+                        continue
+                    linhas_casa.append(f"{BUZIOS_CASAS[idx]}:")
+                    for j in itens:
+                        d = BUZIOS_DADOS.get(j["carta"], {})
+                        ficha = _ficha_buzios(j["carta"], j["estado"]) or {}
+                        linhas_casa.append(
+                            f"  - {d.get('entidade', '?')} — {j['estado'].upper()} "
+                            f"({ficha.get('palavra', '')}): \"{ficha.get('mensagem', '')}\""
+                        )
+
+                linhas_apoio = []
+                for j in apoio_buz:
+                    d = BUZIOS_DADOS.get(j["carta"], {})
+                    ficha = _ficha_buzios(j["carta"], j["estado"]) or {}
+                    linhas_apoio.append(
+                        f"- {d.get('entidade', '?')} — {j['estado'].upper()} "
+                        f"({ficha.get('palavra', '')}): \"{ficha.get('mensagem', '')}\""
+                    )
+
+                f_cons = _ficha_buzios(20, consul["estado"]) or {}
+                tema_final = tema_livre_buzios.strip() if tema_buzios == TEMAS_BUZIOS[-1] else tema_buzios
+
+                prompt_buz = f"""
+TEMA DA LEITURA: {tema_final}
+REGRA DA JOGADA: {regra_buzios} ({len(jogada_buz)} búzios caídos).
+
+DISTRIBUIÇÃO DOS BÚZIOS NA MESA:
+{chr(10).join(linhas_casa)}
+
+CASAS SEM BÚZIOS (domínios adormecidos): {', '.join(BUZIOS_CASAS[i] for i in vazias) if vazias else 'nenhuma'}
+
+CLIMA: {tot_ab} abertos / {tot_fe} fechados.
+
+PONTO DO CONSULENTE: a carta Consulente caiu em {BUZIOS_CASAS[consul['casa']]}, {consul['estado'].upper()}
+— ficha: {f_cons.get('palavra', '')}: "{f_cons.get('mensagem', '')}"
+
+CARTAS DE APOIO (Zé Pilintra, fora da contagem):
+{chr(10).join(linhas_apoio) if linhas_apoio else '(nenhuma carta de apoio tirada)'}
+
+Interprete a jogada conforme as regras da system instruction, cruzando clima, casas,
+ponto do consulente e apoios com o tema perguntado.
+"""
+
+                try:
+                    client_buz = genai.Client(api_key=chave_buz)
+                    with st.spinner("🐚 Os búzios estão falando..."):
+                        resp_buz = chamar_gemini(
+                            client_buz,
+                            prompt_buz,
+                            types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_BUZIOS,
+                                temperature=0.7,
+                            ),
+                        )
+                    if resp_buz and resp_buz.text:
+                        st.session_state["buz_resultado"] = resp_buz.text
+                        if st.session_state.get("buz_mesa") is None:
+                            st.session_state["buz_mesa"] = gerar_imagem_mesa_buzios(
+                                jogada_buz, apoio_buz, tema_buzios
+                            )
+                        cartas_hist = {}
+                        for n, j in enumerate(jogada_buz, start=1):
+                            d = BUZIOS_DADOS.get(j["carta"], {})
+                            cartas_hist[f"Búzio {n:02d} · {BUZIOS_CASAS[j['casa']]}"] = \
+                                f"{d.get('entidade', '?')} ({j['estado']})"
+                        for n, j in enumerate(apoio_buz, start=1):
+                            d = BUZIOS_DADOS.get(j["carta"], {})
+                            cartas_hist[f"Apoio {n}"] = f"{d.get('entidade', '?')} ({j['estado']})"
+
+                        st.session_state["buz_dados"] = {
+                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "nome_consulente": nome_consulente,
+                            "signo_consulente": signo_consulente,
+                            "modo_atendimento": modo_atendimento,
+                            "oraculo": "Búzios (Ifá)",
+                            "metodo": f"Mesa de Búzios ({regra_buzios}) · {tema_final}",
+                            "tom_leitura": "Mentor de Búzios",
+                            "pergunta": tema_final,
+                            "cartas": cartas_hist,
+                            "interpretacao": resp_buz.text,
+                            "telefone": whatsapp_consulente,
+                        }
+                        save_reading(st.session_state["buz_dados"])
+                        st.rerun()
+                    else:
+                        st.error("❌ Não foi possível gerar a interpretação.")
+                except Exception as e:
+                    if eh_erroro_transitorio(e):
+                        st.error(
+                            "❌ **Alta demanda no Gemini (503/429).** "
+                            "Aguarde 1–2 minutos e tente novamente."
+                        )
+                    else:
+                        st.error(f"❌ **Erro na consulta:** `{str(e)}`")
+
+        if st.session_state.get("buz_resultado") and st.session_state.get("buz_dados"):
+            st.markdown("---")
+            st.markdown("## 🐚 Leitura da Jogada")
+            with st.container(border=True):
+                st.markdown(st.session_state["buz_resultado"])
+
+            st.markdown("### 💾 Exportar")
+            pdf_buz = None
+            try:
+                pdf_buz = gerar_pdf_leitura(
+                    dados_leitura=st.session_state["buz_dados"],
+                    modo_profissional=modo_profissional,
+                    dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
+                    imagem_mesa=st.session_state.get("buz_mesa"),
+                    mesa_largura_mm=120.0,
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                st.download_button(
+                    "📄 Baixar leitura (.txt)",
+                    data=st.session_state["buz_resultado"].encode("utf-8-sig"),
+                    file_name=f"buzios_{_slug(st.session_state['buz_dados']['nome_consulente'])}_{_carimbo(st.session_state['buz_dados']['data_hora'])}.txt",
+                    mime="text/plain; charset=utf-8",
+                    use_container_width=True,
+                )
+            with col_e2:
+                if pdf_buz:
+                    st.download_button(
+                        "📕 Baixar relatório (.pdf)",
+                        data=pdf_buz,
+                        file_name=f"buzios_{_slug(st.session_state['buz_dados']['nome_consulente'])}_{_carimbo(st.session_state['buz_dados']['data_hora'])}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+
+            bloco_whatsapp(
+                st.session_state["buz_dados"],
+                st.session_state.get("buz_mesa"),
+                pdf_buz,
+                "buzios",
+                oraculista=nome_oraculista if modo_profissional else "",
+            )
+
+# ========================
+# TAB 3 - v5.5: REGRESSÃO TERAPÊUTICA
+# ========================
+with tab_regressao:
+    # Inicializa o contador de sessão para garantir que o botão "Limpar" funcione 100%
+    if "reg_session_counter" not in st.session_state:
+        st.session_state.reg_session_counter = 0
+
+    st.markdown("### 🌀 Oráculo de Regressão Terapêutica, Apometria e Memória de Alma")
+    st.caption(
+        "Ferramenta complementar de autoconhecimento e apoio terapêutico holístico. "
+        "NÃO substitui psicoterapia, psiquiatria ou medicina; não emite diagnósticos."
+    )
+
+    if not REGRESSAO_CARTAS:
+        st.warning(
+            "Arquivo `regressao.json` não encontrado na raiz do projeto. "
+            "Salve o JSON das 44 fichas ao lado do `app.py`."
+        )
+    else:
+        metodo_reg = st.selectbox(
+            "Método de tiragem",
+            options=list(REGRESSAO_METODOS.keys()),
+            key="reg_metodo_sel",
+        )
+        slots = REGRESSAO_METODOS[metodo_reg]
+        mk = "j4" if metodo_reg.startswith("Jornada") else "la"
+        
+        # O contador atual é usado para invalidar chaves antigas ao limpar
+        counter = st.session_state.reg_session_counter
+
+        st.caption(
+            "Cada coluna recebe **somente cartas do próprio setor**. "
+            "No Setor 3 (Sombra), marque **☯️ invertida** quando a carta cair com a face-sombra para cima. "
+            "O **Espelho (44)** é opcional: quando sai, vira a lente central da leitura."
+        )
+
+        contexto_reg = st.text_area(
+            "Contexto / queixa trazida pelo consulente (opcional, recomendado)",
+            height=100,
+            key=f"reg_contexto_{counter}",
+            placeholder="Ex.: 'Sensação de repetir sempre o mesmo padrão nos relacionamentos...'",
+        )
+
+        if st.session_state.get("reg_sortear"):
+            st.session_state["reg_sortear"] = False
+            usados_sort = set()
+            for slot_id, setor, _rot in slots:
+                pool = [n for n in _cartas_do_setor(setor) if n not in usados_sort]
+                esc = random.choice(pool)
+                usados_sort.add(esc)
+                st.session_state[f"reg_{mk}_{counter}_{slot_id}"] = _rotulo_regressao(esc)
+                st.session_state[f"reginv_{mk}_{counter}_{slot_id}"] = bool(setor == 3 and random.random() < 0.4)
+            st.session_state[f"regesp_{mk}_{counter}"] = bool(random.random() < 0.35)
+            st.session_state["reg_mesa"] = None
+            st.session_state["reg_resultado"] = None
+            st.session_state["reg_dados"] = None
+            st.rerun()
+
+        if st.session_state.get("reg_limpar"):
+            st.session_state["reg_limpar"] = False
+            # Incrementa o contador: todas as chaves antigas ficam órfãs e o Streamlit as descarta
+            st.session_state.reg_session_counter += 1
+            st.session_state["reg_mesa"] = None
+            st.session_state["reg_resultado"] = None
+            st.session_state["reg_dados"] = None
+            st.rerun()
+
+        # ---------- registro por colunas-setores ----------
+        cols_ui = st.columns(4)
+        tiragem_reg = []
+        usados_reg = []
+
+        for ui_idx, setor_id in enumerate([1, 2, 3, 4]):
+            with cols_ui[ui_idx]:
+                sec = REGRESSAO_SETORES.get(setor_id, {})
+                cor = sec.get("hex", "#888888")
+                st.markdown(
+                    f"<span style='color:{cor};font-weight:800;font-size:15px;'>"
+                    f"SETOR {setor_id} · {str(sec.get('nome', '')).upper()}</span><br>"
+                    f"<small style='color:{cor};'>{sec.get('pergunta', '')}</small>",
+                    unsafe_allow_html=True,
+                )
+                for slot_id, sset, rot in [s for s in slots if s[1] == setor_id]:
+                    pool = [
+                        n for n in _cartas_do_setor(setor_id)
+                        if _rotulo_regressao(n) not in usados_reg
+                    ]
+                    opcoes = [PLACEHOLDER_CARTA] + [_rotulo_regressao(n) for n in pool]
+                    
+                    # Chave dinâmica com o contador para garantir reset limpo
+                    chave_sel = f"reg_{mk}_{counter}_{slot_id}"
+                    val = st.session_state.get(chave_sel, PLACEHOLDER_CARTA)
+                    if val not in opcoes:
+                        val = PLACEHOLDER_CARTA
+                        st.session_state[chave_sel] = val
+                        
+                    esc = st.selectbox(
+                        rot,
+                        options=opcoes,
+                        index=opcoes.index(val),
+                        key=chave_sel,
+                    )
+                    
+                    inv = False
+                    if setor_id == 3:
+                        inv = st.checkbox("☯️ Saiu invertida", key=f"reginv_{mk}_{counter}_{slot_id}")
+                        
+                    if esc != PLACEHOLDER_CARTA:
+                        usados_reg.append(esc)
+                        tiragem_reg.append({
+                            "slot": slot_id,
+                            "rotulo": rot,
+                            "setor": setor_id,
+                            "numero": _numero_do_rotulo_regressao(esc),
+                            "invertida": inv,
+                        })
+
+        espelho_reg = st.checkbox(
+            "🪞 O Espelho (44) saiu — posicionar como lente central da tiragem",
+            key=f"regesp_{mk}_{counter}",
+        )
+
+        col_rb1, col_rb2, col_rb3, col_rb4 = st.columns(4)
+        with col_rb1:
+            if st.button("🎲 Sortear", use_container_width=True):
+                st.session_state["reg_sortear"] = True
+                st.rerun()
+        with col_rb2:
+            if st.button("🧹 Limpar", use_container_width=True):
+                st.session_state["reg_limpar"] = True
+                st.rerun()
+        with col_rb3:
+            btn_mesa_reg = st.button("🖼️ Gerar Mesa Visual", use_container_width=True, key="btn_mesa_reg")
+        with col_rb4:
+            btn_interp_reg = st.button(
+                "🌀 Interpretar Tiragem", type="primary", use_container_width=True
+            )
+
+        if btn_mesa_reg:
+            if not tiragem_reg:
+                st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
+            else:
+                st.session_state["reg_mesa"] = gerar_imagem_mesa_regressao(
+                    tiragem_reg, metodo_reg, espelho_reg
+                )
+
+        if st.session_state.get("reg_mesa") is not None:
+            st.image(
+                st.session_state["reg_mesa"],
+                caption="🌀 Mesa da tiragem de regressão (colunas-setores + lente central)",
+                use_container_width=True,
+            )
+
+        if btn_interp_reg:
+            erros_reg = []
+            if len(tiragem_reg) != len(slots):
+                erros_reg.append(
+                    f"Preencha todas as posições do método ({len(slots)} cartas): "
+                    f"{len(tiragem_reg)} preenchida(s)."
+                )
+            chave_reg = obter_chave_api()
+            if not chave_reg:
+                erros_reg.append("Chave de API não configurada (secrets.toml / Secrets do Cloud).")
+
+            if erros_reg:
+                for er in erros_reg:
+                    st.error(f"⚠️ {er}")
+            else:
+                linhas_reg = []
+                for t in tiragem_reg:
+                    c = REGRESSAO_CARTAS.get(t["numero"], {})
+                    bloco = (
+                        f"- {t['rotulo']}: {c.get('nome', '?')} "
+                        f"(palavra-chave: {c.get('palavra_chave', '')})\n"
+                        f"  Diagnóstico clínico: {c.get('diagnostico_clinico', '')}\n"
+                        f"  Mensagem da carta: \"{c.get('mensagem', '')}\""
+                    )
+                    if t["invertida"]:
+                        inv_data = c.get("polaridade", {}).get("inversa", {})
+                        bloco += (
+                            f"\n  ⚠️ CARTA INVERTIDA — face-sombra ativa: {inv_data.get('rotulo', '')}\n"
+                            f"  Frase-sombra: {inv_data.get('frase_sombra', '')}\n"
+                            f"  Comportamento: {inv_data.get('comportamento', '')}\n"
+                            f"  Presente oculto: {inv_data.get('presente_oculto', '')}"
+                        )
+                    linhas_reg.append(bloco)
+
+                bloco_espelho = ""
+                if espelho_reg:
+                    c44 = REGRESSAO_CARTAS.get(44, {})
+                    bloco_espelho = (
+                        f"\n\nO ESPELHO (44) SAIU — lente central da tiragem:\n"
+                        f"  Mensagem: \"{c44.get('mensagem', '')}\"\n"
+                        f"  Pergunta clínica: {c44.get('interpretacao_clinica', '')}\n"
+                        f"  Função: {c44.get('funcao_na_tiragem', '')}"
+                    )
+                else:
+                    bloco_espelho = "\n\nO Espelho (44) NÃO saiu nesta tiragem."
+
+                prompt_reg = f"""
+MÉTODO: {metodo_reg}
+CONTEXTO / QUEIXA DO CONSULENTE: {contexto_reg.strip() or '(não informado)'}
+CONSULENTE: {nome_consulente or 'Não informado'}
+
+CARTAS TIRADAS, POR COLUNA-SETOR:
+{chr(10).join(linhas_reg)}
+{bloco_espelho}
+
+Interprete a tiragem conforme as regras da system instruction, aplicando a matriz de
+cruzamento [S1+S2], [S2+S3] e [S3+S4] e fechando com o manejo clínico.
+"""
+
+                try:
+                    client_reg = genai.Client(api_key=chave_reg)
+                    with st.spinner("🌀 Acessando os registros da alma..."):
+                        resp_reg = chamar_gemini(
+                            client_reg,
+                            prompt_reg,
+                            types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_REGRESSAO,
+                                temperature=0.7,
+                            ),
+                        )
+                    if resp_reg and resp_reg.text:
+                        st.session_state["reg_resultado"] = resp_reg.text
+                        if st.session_state.get("reg_mesa") is None:
+                            st.session_state["reg_mesa"] = gerar_imagem_mesa_regressao(
+                                tiragem_reg, metodo_reg, espelho_reg
+                            )
+                        cartas_hist = {}
+                        for t in tiragem_reg:
+                            c = REGRESSAO_CARTAS.get(t["numero"], {})
+                            sufixo = " (invertida)" if t["invertida"] else ""
+                            cartas_hist[t["rotulo"]] = f"{t['numero']:02d} · {c.get('nome', '?')}{sufixo}"
+                        if espelho_reg:
+                            cartas_hist["Espelho (lente central)"] = "44 · O Espelho"
+
+                        st.session_state["reg_dados"] = {
+                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "nome_consulente": nome_consulente,
+                            "signo_consulente": signo_consulente,
+                            "modo_atendimento": modo_atendimento,
+                            "oraculo": "Regressão Terapêutica",
+                            "metodo": metodo_reg + (" + O Espelho" if espelho_reg else ""),
+                            "tom_leitura": "Mentor de Regressão",
+                            "pergunta": contexto_reg.strip() or "(contexto não informado)",
+                            "cartas": cartas_hist,
+                            "interpretacao": resp_reg.text,
+                            "telefone": whatsapp_consulente,
+                        }
+                        save_reading(st.session_state["reg_dados"])
+                        st.rerun()
+                    else:
+                        st.error("❌ Não foi possível gerar a interpretação.")
+                except Exception as e:
+                    if eh_erroro_transitorio(e):
+                        st.error(
+                            "❌ **Alta demanda no Gemini (503/429).** "
+                            "Aguarde 1–2 minutos e tente novamente."
+                        )
+                    else:
+                        st.error(f"❌ **Erro na consulta:** `{str(e)}`")
+
+        if st.session_state.get("reg_resultado") and st.session_state.get("reg_dados"):
+            st.markdown("---")
+            st.markdown("## 🌀 Leitura da Tiragem de Regressão")
+            with st.container(border=True):
+                st.markdown(st.session_state["reg_resultado"])
+
+            st.markdown("### 💾 Exportar")
+            pdf_reg = None
+            try:
+                pdf_reg = gerar_pdf_leitura(
+                    dados_leitura=st.session_state["reg_dados"],
+                    modo_profissional=modo_profissional,
+                    dados_oraculista={"nome": nome_oraculista, "contato": contato_oraculista} if modo_profissional else None,
+                    imagem_mesa=st.session_state.get("reg_mesa"),
+                )
+            except Exception as e:
+                st.error(f"Erro ao gerar PDF: {e}")
+
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.download_button(
+                    "📄 Baixar leitura (.txt)",
+                    data=st.session_state["reg_resultado"].encode("utf-8-sig"),
+                    file_name=f"regressao_{_slug(st.session_state['reg_dados']['nome_consulente'])}_{_carimbo(st.session_state['reg_dados']['data_hora'])}.txt",
+                    mime="text/plain; charset=utf-8",
+                    use_container_width=True,
+                )
+            with col_r2:
+                if pdf_reg:
+                    st.download_button(
+                        "📕 Baixar relatório (.pdf)",
+                        data=pdf_reg,
+                        file_name=f"regressao_{_slug(st.session_state['reg_dados']['nome_consulente'])}_{_carimbo(st.session_state['reg_dados']['data_hora'])}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+
+            bloco_whatsapp(
+                st.session_state["reg_dados"],
+                st.session_state.get("reg_mesa"),
+                pdf_reg,
+                "regressao",
+                oraculista=nome_oraculista if modo_profissional else "",
+            )
+
+# ========================
+# TAB 4 - HISTÓRICO + COMPARATIVA TEMPORAL
+# ========================
+with tab_historico:
+    st.markdown("### 📚 Leituras Salvas")
+    st.markdown(
+        "Reabra leituras anteriores, exclua registros ou use o botão **⏳ Reavaliar** "
+        "para uma Análise Comparativa Temporal (como a situação se desdobrou)."
+    )
+
+    if st.session_state.get("comparativa_id"):
+        base = load_reading(st.session_state["comparativa_id"])
+        if not base:
+            st.session_state["comparativa_id"] = None
+        else:
+            with st.container(border=True):
+                st.markdown(f"### ⏳ Reavaliando a leitura de {base['data_hora']}")
+                st.caption(f"**Consulente:** {base['nome_consulente'] or 'Não informado'}")
+                st.caption(f"**Pergunta original:** {base['pergunta']}")
+                st.caption(
+                    "**Cartas:** " + " | ".join(f"{k}: {v}" for k, v in base["cartas"].items())
+                )
+                with st.expander("📜 Interpretação original"):
+                    st.markdown(base["interpretacao"])
+
+                relato_atual = st.text_area(
+                    "Como está a situação hoje? O que mudou desde a leitura original?",
+                    height=140,
+                    key="comp_relato",
+                    placeholder="Ex.: 'O contrato que estava travado foi assinado, mas surgiu uma nova tensão com o sócio...'",
+                )
+
+                c_ok, c_cancel = st.columns([3, 1])
+                with c_ok:
+                    btn_comp = st.button(
+                        "🔮 Analisar Desdobramento", type="primary", use_container_width=True
+                    )
+                with c_cancel:
+                    if st.button("✖ Cancelar", use_container_width=True):
+                        st.session_state["comparativa_id"] = None
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+
+                if btn_comp:
+                    if not relato_atual.strip():
+                        st.warning("Descreva brevemente o momento atual antes de analisar.")
+                    else:
+                        chave = obter_chave_api()
+                        if not chave:
+                            st.error("Chave de API não configurada.")
+                        else:
+                            try:
+                                client = genai.Client(api_key=chave)
+                                cartas_base = "\n".join(
+                                    f"- {k}: {v}" for k, v in base["cartas"].items()
+                                )
+                                prompt_comp = f"""
+LEITURA ORIGINAL:
+- Data: {base['data_hora']}
+- Oráculo: {base['oraculo']} | Método: {base['metodo']}
+- Pergunta: {base['pergunta']}
+- Cartas:
+{cartas_base}
+- Interpretação da época:
+{base['interpretacao']}
+
+RELATO ATUAL DO CONSULENTE:
+{relato_atual.strip()}
+
+Realize a Análise Comparativa Temporal completa.
+"""
+                                with st.spinner("⏳ Comparando passado e presente..."):
+                                    resp = chamar_gemini(
+                                        client,
+                                        prompt_comp,
+                                        types.GenerateContentConfig(
+                                            system_instruction=SYSTEM_INSTRUCTION_COMPARATIVA,
+                                            temperature=0.6,
+                                        ),
+                                    )
+                                if resp and resp.text:
+                                    st.session_state["comparativa_resultado"] = resp.text
+                                    dados_comp = {
+                                        "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                        "nome_consulente": base["nome_consulente"],
+                                        "signo_consulente": base["signo_consulente"],
+                                        "modo_atendimento": base["modo_atendimento"],
+                                        "oraculo": base["oraculo"],
+                                        "metodo": f"⏳ Desdobramento Temporal (leitura #{base['id']})",
+                                        "tom_leitura": "Comparativa Temporal",
+                                        "pergunta": f"[Desdobramento] {base['pergunta']}",
+                                        "cartas": base["cartas"],
+                                        "interpretacao": resp.text,
+                                        "telefone": base.get("telefone", ""),
+                                    }
+                                    save_reading(dados_comp)
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Não foi possível gerar a comparação.")
+                            except Exception as e:
+                                if eh_erroro_transitorio(e):
+                                    st.error(
+                                        "❌ **Alta demanda no Gemini (503/429).** "
+                                        "Aguarde 1–2 minutos e tente novamente."
+                                    )
+                                else:
+                                    st.error(f"❌ **Erro na comparação:** `{str(e)}`")
+
+                if st.session_state.get("comparativa_resultado"):
+                    st.markdown("#### 📖 Análise do Desdobramento")
+                    st.markdown(st.session_state["comparativa_resultado"])
+                    st.caption(
+                        "💾 Esta análise foi salva automaticamente no Histórico "
+                        "como 'Desdobramento Temporal'."
+                    )
+                    st.download_button(
+                        "📄 Baixar análise (.txt)",
+                        data=st.session_state["comparativa_resultado"].encode("utf-8-sig"),
+                        file_name=f"desdobramento_{_carimbo(datetime.now().strftime('%d/%m/%Y %H:%M'))}.txt",
+                        mime="text/plain; charset=utf-8",
+                    )
+                    if st.button("🔄 Concluir e fechar análise"):
+                        st.session_state["comparativa_id"] = None
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+
+    leituras = list_readings()
+
+    if not leituras:
+        st.info("📭 Nenhuma leitura salva ainda. Realize sua primeira análise na aba **Nova Leitura**.")
+    else:
+        for leitura in leituras:
+            reading_id, data_hora, nome_cons, oraculo, metodo, tom = leitura
+
+            with st.container(border=True):
+                col_info, col_acoes = st.columns([3, 1])
+
+                with col_info:
+                    st.markdown(f"**🕐 {data_hora}**")
+                    st.markdown(f"👤 **Consulente:** {nome_cons or 'Não informado'}")
+                    st.markdown(f"🃏 **Oráculo:** {oraculo} | **Método:** {metodo}")
+                    st.caption(f"Tom: {tom}")
+
+                with col_acoes:
+                    if st.button("📂 Abrir", key=f"open_{reading_id}", use_container_width=True):
+                        loaded = load_reading(reading_id)
+                        if loaded:
+                            st.session_state.dados_leitura_atual = loaded
+                            st.session_state.interpretacao_atual = loaded["interpretacao"]
+                            st.rerun()
+                    if st.button("⏳ Reavaliar", key=f"comp_{reading_id}", use_container_width=True):
+                        st.session_state["comparativa_id"] = reading_id
+                        st.session_state["comparativa_resultado"] = None
+                        st.rerun()
+                    if st.button("🗑️ Excluir", key=f"del_{reading_id}", use_container_width=True):
+                        delete_reading(reading_id)
+                        st.rerun()
+
+# ========================
+# TAB 5 - ESTATÍSTICAS
+# ========================
+with tab_stats:
+    st.markdown("### 📊 Painel de Estatísticas do Oraculista")
+
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("SELECT * FROM leituras", conn)
+    conn.close()
+
+    if df.empty:
+        st.info("📭 Ainda não há leituras para analisar. O painel ganha vida após a primeira leitura.")
+    else:
+        df["data_dt"] = pd.to_datetime(df["data_hora"], format="%d/%m/%Y %H:%M", errors="coerce")
+        df["periodo"] = df["data_dt"].dt.to_period("M").astype(str)
+
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Leituras totais", len(df))
+        ultimos_30 = df[df["data_dt"] >= (pd.Timestamp.now() - pd.Timedelta(days=30))]
+        m2.metric("Últimos 30 dias", len(ultimos_30))
+        m3.metric("Oráculo favorito", df["oraculo"].value_counts().idxmax().split(" (")[0])
+        m4.metric("Tom favorito", df["tom_leitura"].value_counts().idxmax().split(" (")[0])
+
+        st.markdown("#### 📈 Leituras por mês")
+        serie_mes = df["periodo"].value_counts().sort_index()
+        st.line_chart(serie_mes)
+
+        ca, cb = st.columns(2)
+        with ca:
+            st.markdown("#### 🃏 Por oráculo")
+            st.bar_chart(df["oraculo"].value_counts())
+        with cb:
+            st.markdown("#### 📐 Por método")
+            st.bar_chart(df["metodo"].value_counts())
+
+        cc, cd = st.columns(2)
+        with cc:
+            st.markdown("#### 🎨 Por tom de leitura")
+            st.bar_chart(df["tom_leitura"].value_counts())
+        with cd:
+            st.markdown("#### 🎴 Cartas mais sorteadas (Top 10)")
+            cnt = Counter()
+            for j in df["cartas"]:
+                try:
+                    cnt.update(json.loads(j).values())
+                except Exception:
+                    continue
+            if cnt:
+                top = pd.Series(dict(cnt.most_common(10)))
+                st.bar_chart(top)
+            else:
+                st.caption("Sem dados de cartas.")
+
+        pol = Counter()
+        for _, r in df.iterrows():
+            if str(r["oraculo"]).startswith("Sibilla"):
+                try:
+                    vals = json.loads(r["cartas"]).values()
+                except Exception:
+                    continue
+                for v in vals:
+                    d = _ficha_sibilla(v)
+                    if d:
+                        pol[str(d.get("polaridade", "Neutra"))] += 1
+        if pol:
+            st.markdown("#### ⚖️ Clima das tiragens Sibilla (polaridades)")
+            p1, p2, p3 = st.columns(3)
+            p1.metric("Positivas [+]", pol.get("Positiva", 0))
+            p2.metric("Neutras [±]", pol.get("Neutra", 0))
+            p3.metric("Negativas [−]", pol.get("Negativa", 0))
+
+# ========================
+# TAB 6 - MANUAIS
+# ========================
+with tab_manuais:
+    st.markdown("### 📖 Manuais do Terapeuta")
+    st.markdown(
+        "Estude a linhagem, a arquitetura e as combinações de cada oráculo. "
+        "Os manuais são arquivos HTML na raiz do projeto — leia aqui ou baixe para estudar offline. "
+        "Para prática interativa do Cigano (tabuleiro, geometria e Mentor), use a **Sala Lumina** na sidebar."
+    )
+
+    manual_escolha = st.selectbox("Escolha o manual", options=list(MANUAIS.keys()), index=0)
+    arquivo_manual = Path(__file__).parent / MANUAIS[manual_escolha]
+
+    if arquivo_manual.exists():
+        try:
+            conteudo = arquivo_manual.read_text(encoding="utf-8")
+            col_leitura, col_acoes = st.columns([4, 1])
+            with col_leitura:
+                components.html(conteudo, height=780, scrolling=True)
+            with col_acoes:
+                st.download_button(
+                    "💾 Baixar manual (.html)",
+                    data=conteudo.encode("utf-8"),
+                    file_name=MANUAIS[manual_escolha],
+                    mime="text/html; charset=utf-8",
+                    use_container_width=True,
+                )
+                st.markdown("---")
+                st.markdown(
+                    f"[🔗 Abrir no GitHub](https://github.com/LunaraHolistics/AuxCards/blob/main/{MANUAIS[manual_escolha]})"
+                )
+                st.caption(
+                    "Dica: o arquivo baixado abre em qualquer navegador, "
+                    "com imagens carregadas direto do repositório."
+                )
+        except Exception as e:
+            st.error(f"Erro ao carregar o manual: {e}")
+    else:
+        st.warning(
+            f"Arquivo `{MANUAIS[manual_escolha]}` não encontrado na raiz do projeto. "
+            "Salve o HTML correspondente ao lado do `app.py` e faça o commit."
+        )
 
 # ==========================================
 # RODAPÉ
@@ -2069,7 +2968,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.markdown(
     f"<center><small style='color: #777;'>"
-    f"Auxiliar de Cartomancia & Oráculos v5.6 • Google Gemini API ({MODELO_GEMINI}) • "
+    f"Auxiliar de Cartomancia & Oráculos v5.5 • Google Gemini API ({MODELO_GEMINI}) • "
     f"Cigano · Tarô · Sibilla · Búzios · Regressão • Sala de Estudo: Lumina • Envio via WhatsApp • "
     f"Leituras baseadas em tendências energéticas. Respeite seu livre-arbítrio."
     f"</small></center>",
