@@ -2384,6 +2384,10 @@ ponto do consulente e apoios com o tema perguntado.
 # TAB 3 - v5.5: REGRESSÃO TERAPÊUTICA
 # ========================
 with tab_regressao:
+    # Inicializa o contador de sessão para garantir que o botão "Limpar" funcione 100%
+    if "reg_session_counter" not in st.session_state:
+        st.session_state.reg_session_counter = 0
+
     st.markdown("### 🌀 Oráculo de Regressão Terapêutica, Apometria e Memória de Alma")
     st.caption(
         "Ferramenta complementar de autoconhecimento e apoio terapêutico holístico. "
@@ -2403,6 +2407,9 @@ with tab_regressao:
         )
         slots = REGRESSAO_METODOS[metodo_reg]
         mk = "j4" if metodo_reg.startswith("Jornada") else "la"
+        
+        # O contador atual é usado para invalidar chaves antigas ao limpar
+        counter = st.session_state.reg_session_counter
 
         st.caption(
             "Cada coluna recebe **somente cartas do próprio setor**. "
@@ -2413,7 +2420,7 @@ with tab_regressao:
         contexto_reg = st.text_area(
             "Contexto / queixa trazida pelo consulente (opcional, recomendado)",
             height=100,
-            key="reg_contexto",
+            key=f"reg_contexto_{counter}",
             placeholder="Ex.: 'Sensação de repetir sempre o mesmo padrão nos relacionamentos...'",
         )
 
@@ -2424,16 +2431,17 @@ with tab_regressao:
                 pool = [n for n in _cartas_do_setor(setor) if n not in usados_sort]
                 esc = random.choice(pool)
                 usados_sort.add(esc)
-                st.session_state[f"reg_{mk}_{slot_id}"] = _rotulo_regressao(esc)
-                st.session_state[f"reginv_{mk}_{slot_id}"] = bool(setor == 3 and random.random() < 0.4)
-            st.session_state[f"regesp_{mk}"] = bool(random.random() < 0.35)
+                st.session_state[f"reg_{mk}_{counter}_{slot_id}"] = _rotulo_regressao(esc)
+                st.session_state[f"reginv_{mk}_{counter}_{slot_id}"] = bool(setor == 3 and random.random() < 0.4)
+            st.session_state[f"regesp_{mk}_{counter}"] = bool(random.random() < 0.35)
             st.session_state["reg_mesa"] = None
             st.session_state["reg_resultado"] = None
+            st.session_state["reg_dados"] = None
             st.rerun()
 
         if st.session_state.get("reg_limpar"):
             st.session_state["reg_limpar"] = False
-            # Incrementa o contador: todas as chaves antigas ficam órfãs
+            # Incrementa o contador: todas as chaves antigas ficam órfãs e o Streamlit as descarta
             st.session_state.reg_session_counter += 1
             st.session_state["reg_mesa"] = None
             st.session_state["reg_resultado"] = None
@@ -2461,20 +2469,25 @@ with tab_regressao:
                         if _rotulo_regressao(n) not in usados_reg
                     ]
                     opcoes = [PLACEHOLDER_CARTA] + [_rotulo_regressao(n) for n in pool]
-                    chave_sel = f"reg_{mk}_{slot_id}"
+                    
+                    # Chave dinâmica com o contador para garantir reset limpo
+                    chave_sel = f"reg_{mk}_{counter}_{slot_id}"
                     val = st.session_state.get(chave_sel, PLACEHOLDER_CARTA)
                     if val not in opcoes:
                         val = PLACEHOLDER_CARTA
                         st.session_state[chave_sel] = val
+                        
                     esc = st.selectbox(
                         rot,
                         options=opcoes,
                         index=opcoes.index(val),
                         key=chave_sel,
                     )
+                    
                     inv = False
                     if setor_id == 3:
-                        inv = st.checkbox("☯️ Saiu invertida", key=f"reginv_{mk}_{slot_id}")
+                        inv = st.checkbox("☯️ Saiu invertida", key=f"reginv_{mk}_{counter}_{slot_id}")
+                        
                     if esc != PLACEHOLDER_CARTA:
                         usados_reg.append(esc)
                         tiragem_reg.append({
@@ -2487,7 +2500,7 @@ with tab_regressao:
 
         espelho_reg = st.checkbox(
             "🪞 O Espelho (44) saiu — posicionar como lente central da tiragem",
-            key=f"regesp_{mk}",
+            key=f"regesp_{mk}_{counter}",
         )
 
         col_rb1, col_rb2, col_rb3, col_rb4 = st.columns(4)
@@ -2546,12 +2559,12 @@ with tab_regressao:
                         f"  Mensagem da carta: \"{c.get('mensagem', '')}\""
                     )
                     if t["invertida"]:
-                        inv = c.get("polaridade", {}).get("inversa", {})
+                        inv_data = c.get("polaridade", {}).get("inversa", {})
                         bloco += (
-                            f"\n  ⚠️ CARTA INVERTIDA — face-sombra ativa: {inv.get('rotulo', '')}\n"
-                            f"  Frase-sombra: {inv.get('frase_sombra', '')}\n"
-                            f"  Comportamento: {inv.get('comportamento', '')}\n"
-                            f"  Presente oculto: {inv.get('presente_oculto', '')}"
+                            f"\n  ⚠️ CARTA INVERTIDA — face-sombra ativa: {inv_data.get('rotulo', '')}\n"
+                            f"  Frase-sombra: {inv_data.get('frase_sombra', '')}\n"
+                            f"  Comportamento: {inv_data.get('comportamento', '')}\n"
+                            f"  Presente oculto: {inv_data.get('presente_oculto', '')}"
                         )
                     linhas_reg.append(bloco)
 
