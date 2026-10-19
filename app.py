@@ -1562,6 +1562,8 @@ if "reg_resultado" not in st.session_state:
     st.session_state.reg_resultado = None
 if "reg_dados" not in st.session_state:
     st.session_state.reg_dados = None
+if "reg_session_counter" not in st.session_state:
+    st.session_state.reg_session_counter = 0
 
 # ==========================================
 # BARRA LATERAL (SIDEBAR)
@@ -2431,12 +2433,11 @@ with tab_regressao:
 
         if st.session_state.get("reg_limpar"):
             st.session_state["reg_limpar"] = False
-            for slot_id, _s, _r in slots:
-                st.session_state.pop(f"reg_{mk}_{slot_id}", None)
-                st.session_state.pop(f"reginv_{mk}_{slot_id}", None)
-            st.session_state.pop(f"regesp_{mk}", None)
+            # Incrementa o contador: todas as chaves antigas ficam órfãs
+            st.session_state.reg_session_counter += 1
             st.session_state["reg_mesa"] = None
             st.session_state["reg_resultado"] = None
+            st.session_state["reg_dados"] = None
             st.rerun()
 
         # ---------- registro por colunas-setores ----------
