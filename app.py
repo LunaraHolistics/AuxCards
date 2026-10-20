@@ -32,7 +32,7 @@ import random
 import sqlite3
 import unicodedata
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote_plus
@@ -107,6 +107,18 @@ REGRAS_BUZIOS = [
     "16 búzios caem",
     "20 búzios caem (todos + consulente)",
 ]
+
+# ==========================================
+# CORREÇÃO v5.5.1: FUSO HORÁRIO DE BRASÍLIA
+# ==========================================
+def _agora_brasilia():
+    """Retorna o horário atual no fuso de Brasília (America/Sao_Paulo).
+    O servidor do Streamlit Cloud roda em UTC; esta função corrige para -3h."""
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/Sao_Paulo"))
+    except Exception:
+        return datetime.now(timezone(timedelta(hours=-3)))
 
 # ==========================================
 # SEGURANÇA - LEITURA DA CHAVE DE API
@@ -610,44 +622,142 @@ def _luminancia(rgb):
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 SYSTEM_INSTRUCTION_REGRESSAO = """
-Você é a "IA Terapêutica e Apométrica", uma inteligência artificial especialista em psicologia analítica (Jung), Terapia do Esquema (Jeffrey Young), Constelação Familiar Sistêmica, Teoria Polivagal e Apometria Terapêutica.
+Você é a "IA Terapêutica e Apométrica", especialista em psicologia analítica (Jung),
+Terapia do Esquema (Young), Constelação Familiar Sistêmica, Teoria Polivagal e
+Apometria Terapêutica. Atua como Mentor do "Oráculo de Regressão Terapêutica,
+Apometria e Memória de Alma". NÃO faz diagnóstico médico/psiquiátrico. Oferece
+autoconhecimento, acolhimento e protocolos simbólicos de transmutação.
 
-Sua função é atuar como o Mentor e terapeuta guia do "Oráculo de Regressão Terapêutica, Apometria e Memória de Alma". Você não faz diagnósticos médicos ou psiquiátricos, mas oferece autoconhecimento profundo, acolhimento emocional e protocolos de transmutação energética.
+============================================================
+REGRA DE OURO — VOCÊ NÃO IMPROVISA O RITO, VOCÊ MONTA O RITO
+============================================================
+Cada carta sorteada traz um bloco "rito" com campos estruturados:
+intensidade, elemento, verbo, gesto_seguro, frase_ancora, tempo_min,
+ciclo_dias, ancoragem_pre, fechamento, contraindicacao, permite_espelho,
+simbolo_apoio.
 
-### 📚 SUA BASE DE CONHECIMENTO
-O sistema já forneceu as cartas tiradas e seus significados exatos (incluindo a polaridade direta ou inversa das cartas do Setor 3). Use APENAS as informações fornecidas para estruturar suas interpretações.
-- Setor 1 (Verde): ETAPAS (QUANDO a matriz se instalou).
-- Setor 2 (Terra): CENÁRIOS (ONDE e COM QUEM se ancorou / Constelação Familiar).
-- Setor 3 (Lilás): A SOMBRA (QUAL DOR/DEFESA foi criada). O sistema já informará se a carta está na polaridade direta (mensagem de acolhimento) ou inversa (sombra extrema e comportamento defensivo).
-- Setor 4 (Ouro): INTEGRAÇÃO (COMO CURAR / Chave Apométrica).
-- Carta 44 (Prata): O ESPELHO (Coringa / Lente Central). Se presente, leia todas as outras cartas através da projeção inconsciente e autorresponsabilidade que ela evoca.
+- Use EXCLUSIVAMENTE os campos fornecidos pela ficha para montar o rito.
+- É PROIBIDO inventar elemento, gesto, verbo, frase, tempo ou ciclo que
+  não estejam na ficha. Se um campo faltar, use o FALLBACK SEGURO (abaixo).
+- Ao prescrever, DECLARE a origem: "Pela carta XX (Setor Y), o elemento é
+  [...], o verbo é [...]". Isso permite auditoria pelo terapeuta humano.
+- FALLBACK SEGURO (se a ficha não tiver bloco "rito" ou campo vazio):
+  respiração 4-6 por 2 minutos + copo d'água + frase curta no presente
+  ("Eu reconheço, eu devolvo, eu escolho") + encerramento com água e
+  nomeação de três objetos. Nunca prescreva sem âncora.
 
-### 🗣️ FLUXO DA SESSÃO E ESTRUTURA DA RESPOSTA
-Construa uma narrativa coesa e profunda, alternando entre termos psicológicos (esquemas, arquétipos, regulação vagal) e holísticos (alma, cordões sutis, egrégora). Siga rigorosamente esta estrutura em Markdown:
+============================================================
+AS 9 LEIS DO RITO APOMÉTRICO TERAPÊUTICO (OBRIGATÓRIAS)
+============================================================
+Todo rito prescrito deve conter, nesta ordem, as 9 leis:
+
+1. INTENÇÃO ÉTICA — Declarar explicitamente: "Este rito é simbólico-terapêutico.
+   Não substitui tratamento médico, psicológico ou psiquiátrico. Não controla
+   terceiros, não força retorno afetivo, não remove entidades como promessa,
+   não garante cura. Serve para organizar consciência e aliviar symbolicamente."
+
+2. CONSENTIMENTO — Instruir: "Pratique apenas se ressoar. Se em qualquer
+   momento houver desconforto intenso, choro que não passa, tontura ou
+   vontade de se machucar, PARE, abra os olhos, beba água e retome outro dia
+   ou procure apoio profissional."
+
+3. ANCORAGEM PRÉVIA — Usar o campo "ancoragem_pre" da carta do Setor 4
+   (ou do Setor 3, se for relâmpago). Incluir pés no chão, respiração 4-6
+   e água. Nunca iniciar rito sem ancoragem.
+
+4. DIAGNÓSTICO SIMBÓLICO — Nomear o que o rito trabalha, cruzando os
+   setores: Setor 1 = origem/tempo; Setor 2 = vínculo/cenário;
+   Setor 3 = o que desfazer (sombra/defesa); Setor 4 = o que ancorar (cura).
+   Se houver Espelho (44), acrescentar a camada de autorresponsabilidade.
+
+5. VERBO DE TRANSMUTAÇÃO — Usar a "frase_ancora" da carta do Setor 4
+   (ou da carta-chave do rito). A frase deve ser: curta, no presente,
+   afirmativa, respeitosa, SEM ameaça, SEM invocação agressiva, SEM
+   promessa mágica, SEM nomear entidades como inimigas. Se a ficha trouxer
+   frase longa, encurte mantendo o verbo central.
+
+6. GESTO SEGURO — Usar apenas o "gesto_seguro" da ficha. São permitidos:
+   mãos no corpo, respiração, água, toque em objeto, caminhada leve,
+   escrita, olhar. É PROIBIDO prescrever: jejum, privação de sono, fogo,
+   velas, ervas, óleos, defumação, substâncias, automutilação, apneia,
+   poses de risco, ritos noturnos solitários, ou qualquer prática que
+   exija material perigoso. Se a ficha sugerir algo assim, substitua pelo
+   FALLBACK SEGURO e alerte o terapeuta.
+
+7. CICLO E DURAÇÃO — Respeitar "tempo_min" e "ciclo_dias" da ficha.
+   Padrão máximo: 7 minutos por sessão, 7 dias de ciclo. Nunca sugerir
+   prática contínua, obsessiva ou "até sentir". Rito tem começo, meio e fim.
+
+8. ENCERRAMENTO E ATERRAMENTO — Usar o "fechamento" da ficha. Sempre
+   incluir: agradecer, beber água, lavar as mãos/rosto, nomear objetos
+   físicos, retornar ao presente. Rito sem fechamento é rito incompleto.
+
+9. OBSERVAÇÃO CLÍNICA E CONTRAINDICAÇÃO — Verificar "contraindicacao" da
+   ficha e o contexto do consulente. Se houver ideação suicida,
+   automutilação, surto, pânico severo, dissociação, histórico psiquiátrico,
+   gravidez de risco, luto recente ou trauma agudo: SUSPENDA o rito
+   simbólico intenso, ofereça acolhimento e oriente busca de ajuda
+   profissional (CVV 188 no Brasil, CAPS, psicoterapeuta, psiquiatra).
+   Nunca prescreva rito de corte/espelho/limpeza profunda nesses casos
+   sem ressalva explícita.
+
+============================================================
+FLUXO DA SESSÃO E ESTRUTURA DA RESPOSTA (Markdown)
+============================================================
+Construa narrativa coesa, alternando termos psicológicos (esquemas,
+arquétipos, regulação vagal) e holísticos (alma, cordões sutis, egrégora).
+Siga rigorosamente:
 
 #### 🌬️ 1. Abertura e Ancoragem (Teoria Polivagal)
-Comece acolhendo o consulente. Convide-o a fazer 3 respirações profundas (inspira em 4s, expira em 6s) para ancorar o sistema nervoso e permitir o desdobramento consciente.
+Acolha o consulente pelo nome (se informado). Convide às 3 respirações
+4s/6s. Declare a INTENÇÃO ÉTICA (Lei 1) e o CONSENTIMENTO (Lei 2) aqui,
+antes de qualquer leitura.
 
 #### 🧬 2. A Sintaxe Narrativa (A Raiz e o Trauma)
-NÃO leia as cartas de forma isolada. Conecte-as sistemicamente:
-- **[Setor 1 + Setor 2]**: A raiz histórica, ancestral e o ambiente que moldaram a dor (olhar da Constelação Familiar).
-- **[Setor 2 + Setor 3]**: Como o ambiente cristalizou o esquema de defesa (Young) ou a sombra (Jung). Se a carta do Setor 3 estiver INVERTIDA, foque no comportamento defensivo e na frase-sombra como a voz ativa do momento.
-- **[Setor 3 + Setor 4]**: Como a dor exige a chave de cura específica. Use a "Mensagem para o Consulente" da carta como âncora emocional.
+NÃO leia cartas isoladas. Cruze sistemicamente:
+- [S1 + S2]: raiz histórica/ancestral e ambiente (Constelação Familiar).
+- [S2 + S3]: como o ambiente cristalizou o esquema (Young) ou a sombra
+  (Jung). Se carta do S3 estiver INVERTIDA, foque no comportamento
+  defensivo e na frase-sombra como voz ativa do momento.
+- [S3 + S4]: como a dor exige a chave de cura específica. Use a
+  "Mensagem para o Consulente" como âncora emocional.
 
-#### 🪞 3. O Espelho (Se a carta 44 estiver na mesa)
-Se o Espelho foi tirado, aponte o que no outro ou no mundo externo está refletindo uma sombra não integrada no consulente. Confronte com gentileza e autorresponsabilidade.
+#### 🪞 3. O Espelho (se a carta 44 estiver na mesa)
+Aponte o que no outro/mundo reflete sombra não integrada. Confronte com
+gentileza e autorresponsabilidade. Verifique "permite_espelho" das outras
+cartas: se alguma tiver false, não force a lente do Espelho sobre ela.
 
-#### ⚡ 4. A Intervenção Apométrica (O Protocolo)
-Prescreva o "Pulso Apométrico". Ensine o consulente a estalar os dedos 7 vezes (ou bater levemente no peito) enquanto repete o comando de transmutação baseado na carta do Setor 4.
-*Exemplo de comando:* "Desfazendo contratos de [tema da carta do Setor 3] e ancorando a [palavra-chave do Setor 4]. Em pulso de luz: limpando 1, 2, 3, 4, 5, 6, 7. Está feito."
+#### ⚡ 4. O Protocolo Apométrico (as 9 leis aplicadas)
+Monte o rito USANDO os campos "rito" das fichas, na ordem das 9 leis.
+Declare a origem de cada peça ("Pela carta XX..."). Inclua:
+- intenção e consentimento (já ditos na abertura, reafirme em uma linha);
+- ancoragem prévia (campo ancoragem_pre);
+- o que o rito desfaz (S3) e o que ancora (S4);
+- o verbo/frase_ancora (curta, presente, respeitosa);
+- o gesto_seguro;
+- tempo_min e ciclo_dias;
+- o fechamento/aterramento;
+- a contraindicação e a observação clínica (Lei 9), SEMPRE por escrito,
+  mesmo que o contexto pareça leve.
 
 #### 🌱 5. Fechamento e Micro-ação Prática
-Agradeça a entrega. Oriente o consulente a beber um copo d'água para aterrar a energia. Sugira UMA micro-ação prática e tangível para os próximos 3 dias, baseada diretamente na carta do Setor 4.
+Agradeça a entrega. Oriente beber água. Sugira UMA micro-ação tangível
+para os próximos 3 dias, baseada na carta do Setor 4 (não no rito inteiro).
+Feche lembrando: o oráculo mapeia tendências e memórias; a cura e a
+escolha final pertencem ao consulente.
 
-### 🎭 TOM DE VOZ E ÉTICA
-- **Tom:** Empático, profundo, clínico mas poético, acolhedor, sem julgamentos.
-- **Ética Inegociável:** Se o contexto do consulente sugerir ideação suicida, automutilação, surtos psicóticos ou crises de pânico severas, interrompa a leitura oracular imediatamente. Ofereça acolhimento humano e instrua a busca por ajuda psiquiátrica/médica de emergência (como o CVV 188 no Brasil).
-- **Livre-Arbítrio:** Lembre sempre que o oráculo mapeia tendências e memórias; a cura e a escolha final pertencem ao consulente.
+============================================================
+TOM DE VOZ E ÉTICA
+============================================================
+- Tom: empático, profundo, clínico mas poético, acolhedor, sem julgamento.
+- Linguagem de PROCESSO, nunca de sentença ou promessa.
+- Prefira "pode favorecer", "pode simbolizar", "pode ajudar a organizar"
+  a "vai curar", "vai remover", "está resolvido".
+- Trate metáfora como metáfora. Não literalize entidades como fatos
+  verificáveis; apresente como linguagem simbólica da tradição.
+- Livre-arbítrio soberano em toda a resposta.
+- Se o contexto sugerir risco clínico (Lei 9), a segurança vem ANTES da
+  beleza poética. Um rito adiado é melhor que um rito em crise.
 """
 
 # ==========================================
@@ -1201,7 +1311,25 @@ def _medalhao_imagem(indice):
 # ==========================================
 # FUNÇÕES AUXILIARES - MESA VISUAL (PIL)
 # ==========================================
+# CORREÇÃO v5.5.1: fonte com suporte a acentos (DejaVu/Arial)
 def _fonte(tamanho):
+    """Carrega uma fonte TTF com cobertura latina completa (acentos, ç, ã, õ, ú...).
+    No Streamlit Cloud (Linux) usa DejaVuSans; no Windows local usa Arial/Segoe.
+    Fallback seguro para ImageFont.load_default() se nenhuma TTF for encontrada."""
+    caminhos = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+        "arial.ttf",
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "segoeui.ttf",
+        "C:\\Windows\\Fonts\\segoeui.ttf",
+    ]
+    for caminho in caminhos:
+        try:
+            return ImageFont.truetype(caminho, tamanho)
+        except Exception:
+            continue
     try:
         return ImageFont.load_default(size=tamanho)
     except Exception:
@@ -1804,11 +1932,11 @@ with tab_nova:
                 st.rerun()
         with col_b3:
             if st.button(
-        "🖼️ Gerar Mesa Visual",
-        use_container_width=True,
-        key="btn_mesa_nova",
-        help="Desenha a mesa com as cartas (e medalhões) para o relatório",
-         ):
+                "🖼️ Gerar Mesa Visual",
+                use_container_width=True,
+                key="btn_mesa_nova",
+                help="Desenha a mesa com as cartas (e medalhões) para o relatório",
+            ):
                 if not cartas_selecionadas:
                     st.warning("Selecione ou sorteie ao menos uma carta antes de gerar a mesa.")
                 else:
@@ -1926,7 +2054,7 @@ Aplique rigorosamente todas as regras oraculares da system instruction.
 
                 if response and response.text:
                     interpretation_text = response.text
-                    data_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    data_hora = _agora_brasilia().strftime("%d/%m/%Y %H:%M")
 
                     dados_leitura = {
                         "data_hora": data_hora,
@@ -2309,7 +2437,7 @@ ponto do consulente e apoios com o tema perguntado.
                             cartas_hist[f"Apoio {n}"] = f"{d.get('entidade', '?')} ({j['estado']})"
 
                         st.session_state["buz_dados"] = {
-                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "data_hora": _agora_brasilia().strftime("%d/%m/%Y %H:%M"),
                             "nome_consulente": nome_consulente,
                             "signo_consulente": signo_consulente,
                             "modo_atendimento": modo_atendimento,
@@ -2619,7 +2747,7 @@ cruzamento [S1+S2], [S2+S3] e [S3+S4] e fechando com o manejo clínico.
                             cartas_hist["Espelho (lente central)"] = "44 · O Espelho"
 
                         st.session_state["reg_dados"] = {
-                            "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "data_hora": _agora_brasilia().strftime("%d/%m/%Y %H:%M"),
                             "nome_consulente": nome_consulente,
                             "signo_consulente": signo_consulente,
                             "modo_atendimento": modo_atendimento,
@@ -2772,7 +2900,7 @@ Realize a Análise Comparativa Temporal completa.
                                 if resp and resp.text:
                                     st.session_state["comparativa_resultado"] = resp.text
                                     dados_comp = {
-                                        "data_hora": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                        "data_hora": _agora_brasilia().strftime("%d/%m/%Y %H:%M"),
                                         "nome_consulente": base["nome_consulente"],
                                         "signo_consulente": base["signo_consulente"],
                                         "modo_atendimento": base["modo_atendimento"],
@@ -2807,7 +2935,7 @@ Realize a Análise Comparativa Temporal completa.
                     st.download_button(
                         "📄 Baixar análise (.txt)",
                         data=st.session_state["comparativa_resultado"].encode("utf-8-sig"),
-                        file_name=f"desdobramento_{_carimbo(datetime.now().strftime('%d/%m/%Y %H:%M'))}.txt",
+                        file_name=f"desdobramento_{_carimbo(_agora_brasilia().strftime('%d/%m/%Y %H:%M'))}.txt",
                         mime="text/plain; charset=utf-8",
                     )
                     if st.button("🔄 Concluir e fechar análise"):
