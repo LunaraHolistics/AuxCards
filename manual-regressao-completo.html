@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do Oráculo de Regressão Terapêutica, Apometria e Memória de Alma</title>
+  <style>
+    :root {
+      --bg: #fbf8f3;
+      --text: #2f2a26;
+      --muted: #6f665f;
+      --card: #ffffff;
+      --line: #e7ded3;
+      --s1: #5B8C7A;
+      --s2: #A68B6D;
+      --s3: #8A7B9B;
+      --s4: #D4AF37;
+      --s0: #9aa0a6;
+      --danger: #b3403a;
+      --ok: #2e7d5b;
+      --shadow: 0 10px 28px rgba(45, 35, 25, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(180deg, #fffaf3 0%, #f7f1ea 100%);
+      color: var(--text);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.55;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header.hero {
+      background: linear-gradient(135deg, #2b2433 0%, #4b3b57 55%, #7a5f8c 100%);
+      color: #fff;
+      border-radius: 22px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    header.hero h1 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+      line-height: 1.2;
+    }
+
+    header.hero p {
+      margin: 6px 0;
+      color: #f1e9ff;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.18);
+      font-size: 0.85rem;
+    }
+
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    nav.toc h2 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+    }
+
+    nav.toc ul {
+      margin: 0;
+      padding-left: 20px;
+      columns: 2;
+      column-gap: 24px;
+    }
+
+    nav.toc li {
+      margin: 4px 0;
+      break-inside: avoid;
+    }
+
+    nav.toc a {
+      color: #5a466f;
+      text-decoration: none;
+    }
+
+    nav.toc a:hover {
+      text-decoration: underline;
+    }
+
+    section.panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+      margin-bottom: 22px;
+    }
+
+    section.panel h2 {
+      margin-top: 0;
+      font-size: 1.45rem;
+    }
+
+    section.panel h3 {
+      margin-top: 24px;
+      font-size: 1.15rem;
+    }
+
+    .lead {
+      font-size: 1.02rem;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fffdfa;
+    }
+
+    .mini-card h4 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+    }
+
+    .sector-1 { border-left: 6px solid var(--s1); }
+    .sector-2 { border-left: 6px solid var(--s2); }
+    .sector-3 { border-left: 6px solid var(--s3); }
+    .sector-4 { border-left: 6px solid var(--s4); }
+    .sector-0 { border-left: 6px solid var(--s0); }
+
+    .law-list {
+      counter-reset: law;
+      padding-left: 0;
+      list-style: none;
+    }
+
+    .law-list li {
+      position: relative;
+      padding: 14px 14px 14px 54px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      margin-bottom: 10px;
+      background: #fffdfa;
+    }
+
+    .law-list li::before {
+      counter-increment: law;
+      content: counter(law);
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #efe7fb;
+      color: #5d4773;
+      font-weight: 700;
+    }
+
+    .alert {
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin: 14px 0;
+      border: 1px solid;
+    }
+
+    .alert-danger {
+      background: #fff3f2;
+      border-color: #f1c4c1;
+      color: #8f2f2b;
+    }
+
+    .alert-info {
+      background: #f5f9ff;
+      border-color: #d7e6fb;
+      color: #28527a;
+    }
+
+    .alert-ok {
+      background: #f3fbf6;
+      border-color: #cdebd8;
+      color: #215d3f;
+    }
+
+    .cards-by-sector {
+      margin-top: 10px;
+    }
+
+    .sector-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 26px 0 12px;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot.s1 { background: var(--s1); }
+    .dot.s2 { background: var(--s2); }
+    .dot.s3 { background: var(--s3); }
+    .dot.s4 { background: var(--s4); }
+    .dot.s0 { background: var(--s0); }
+
+    details.carta {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      margin-bottom: 12px;
+      background: #fffdfa;
+      overflow: hidden;
+    }
+
+    details.carta summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      user-select: none;
+    }
+
+    details.carta summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.carta[open] summary {
+      border-bottom: 1px solid var(--line);
+      background: #faf6f1;
+    }
+
+    .num {
+      min-width: 34px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 0.85rem;
+      color: #fff;
+      background: #7a6d86;
+    }
+
+    .s1 .num { background: var(--s1); }
+    .s2 .num { background: var(--s2); }
+    .s3 .num { background: var(--s3); }
+    .s4 .num { background: var(--s4); }
+    .s0 .num { background: var(--s0); }
+
+    .card-body {
+      padding: 16px;
+    }
+
+    .msg {
+      font-size: 1.02rem;
+      margin: 0 0 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #f8f4ff;
+      border: 1px solid #e8def8;
+    }
+
+    .diag {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 8px 12px;
+      margin-top: 10px;
+    }
+
+    .kv dt {
+      font-weight: 700;
+      color: #4e445c;
+    }
+
+    .kv dd {
+      margin: 0;
+    }
+
+    .polarity {
+      margin-top: 14px;
+      border: 1px dashed #d7c9e6;
+      border-radius: 14px;
+      padding: 14px;
+      background: #fbf8ff;
+    }
+
+    .polarity h4 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      background: #efe9f6;
+      color: #5d4a70;
+      margin-right: 6px;
+      margin-bottom: 6px;
+    }
+
+    .ritual-box {
+      margin-top: 14px;
+      border: 1px solid #eadfcd;
+      border-radius: 14px;
+      padding: 14px;
+      background: #fffaf2;
+    }
+
+    .ritual-box h4 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: #7a5b22;
+    }
+
+    .checklist {
+      padding-left: 20px;
+    }
+
+    .checklist li {
+      margin: 7px 0;
+    }
+
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.92rem;
+      padding: 10px 0 20px;
+    }
+
+    @media (max-width: 760px) {
+      body { padding: 14px; }
+      nav.toc ul { columns: 1; }
+      .kv { grid-template-columns: 1fr; }
+      .kv dt { margin-top: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Manual do Oráculo de Regressão Terapêutica, Apometria e Memória de Alma</h1>
+      <p>Guia clínico-simbólico para leitura, interpretação e prescrição responsável de ritos apométricos terapêuticos.</p>
+      <p><strong>Versão do manual:</strong> 2.2 · <strong>Base:</strong> 44 cartas · 4 setores + Espelho central</p>
+      <div class="badges">
+        <span class="badge">Autoconhecimento</span>
+        <span class="badge">Acolhimento</span>
+        <span class="badge">Linguagem simbólica</span>
+        <span class="badge">Não substitui terapia ou medicina</span>
+        <span class="badge">Protocolo das 9 Leis</span>
+      </div>
+    </header>
+
+    <nav class="toc">
+      <h2>Índice</h2>
+      <ul>
+        <li><a href="#apresentacao">1. Apresentação</a></li>
+        <li><a href="#etica">2. Ética, limites e segurança</a></li>
+        <li><a href="#setores">3. Arquitetura dos setores</a></li>
+        <li><a href="#leis">4. As 9 Leis Apométricas Terapêuticas</a></li>
+        <li><a href="#fluxo">5. Fluxo da sessão</a></li>
+        <li><a href="#fichas">6. Fichas das 44 cartas</a></li>
+        <li><a href="#checklist">7. Checklist do terapeuta</a></li>
+        <li><a href="#uso-app">8. Como usar no sistema</a></li>
+      </ul>
+    </nav>
+
+    <section class="panel" id="apresentacao">
+      <h2>1. Apresentação</h2>
+      <p class="lead">
+        O <strong>Oráculo de Regressão Terapêutica, Apometria e Memória de Alma</strong> é uma ferramenta de
+        <strong>leitura simbólico-terapêutica</strong> destinada a apoiar processos de autoconhecimento,
+        reorganização emocional e elaboração de padrões repetitivos.
+      </p>
+      <p>
+        Ele não opera como diagnóstico médico, psiquiátrico, psicológico ou jurídico. Também não substitui
+        acompanhamento profissional, tratamento, terapia, medicação ou orientação religiosa iniciática.
+        Sua função é oferecer <strong>linguagem simbólica útil</strong> para que o consulente reconheça padrões,
+        nomeie dores, recupere autoria e pratique cuidados simples de aterramento e transmutação interna.
+      </p>
+      <p>
+        A estrutura do oráculo parte de quatro eixos:
+        <strong>quando</strong> a matriz se instalou, <strong>onde/com quem</strong> ela se ancorou,
+        <strong>qual dor/defesa</strong> foi criada e <strong>como integrar/curar</strong>.
+        A carta 44, <strong>O Espelho</strong>, funciona como lente central quando presente, convidando
+        à autorresponsabilidade gentil.
+      </p>
+      <div class="alert alert-info">
+        <strong>Princípio central:</strong> o oráculo mapeia tendências, memórias e símbolos.
+        A escolha, o cuidado e a decisão final pertencem ao consulente.
+      </div>
+    </section>
+
+    <section class="panel" id="etica">
+      <h2>2. Ética, limites e segurança</h2>
+      <h3>2.1 O que este oráculo NÃO faz</h3>
+      <ul>
+        <li>Não emite diagnóstico de doença mental, transtorno, trauma clínico ou condição médica.</li>
+        <li>Não promete cura, remoção definitiva de entidades, resolução forçada de vínculos ou garantia de resultado.</li>
+        <li>Não substitui psicoterapia, psiquiatria, clínica médica, urgência/emergência ou acompanhamento espiritual responsável.</li>
+        <li>Não autoriza prática de risco: jejum extremo, privação de sono, fogo, ervas, substâncias, automutilação ou exposição perigosa.</li>
+        <li>Não deve ser usado para culpar, amaldiçoar, vigiar, controlar ou perseguir terceiros.</li>
+      </ul>
+
+      <h3>2.2 Quando suspender a leitura ritualística</h3>
+      <div class="alert alert-danger">
+        Se houver qualquer sinal de <strong>ideação suicida</strong>, <strong>automutilação</strong>,
+        <strong>crise de pânico severa</strong>, <strong>dissociação intensa</strong>,
+        <strong>surto psicótico</strong>, <strong>agitação violenta</strong>, <strong>luto recente agudo</strong>
+        ou <strong>instabilidade psiquiátrica</strong>, a prioridade é o acolhimento humano e o encaminhamento
+        profissional. Não prescreva rito profundo nesse momento.
+        <br /><br />
+        No Brasil, em risco imediato, oriente procurar ajuda profissional e, se necessário, ligar
+        <strong>CVV 188</strong> ou serviço de emergência local.
+      </div>
+
+      <h3>2.3 Postura recomendada do terapeuta/oraculista</h3>
+      <ul>
+        <li>Fale em linguagem de processo: “pode favorecer”, “pode simbolizar”, “pode ajudar a organizar”.</li>
+        <li>Evite sentenças: “você tem”, “está confirmado”, “vai curar”, “é culpa de”, “não tem saída”.</li>
+        <li>Trate metáforas espirituais como metáforas terapêuticas, salvo convicção pessoal do consulente.</li>
+        <li>Respeite o ritmo emocional: se a pessoa chorar, parar, respirar, ancorar.</li>
+        <li>Devolva autonomia: o rito é convite, não obrigação.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="setores">
+      <h2>3. Arquitetura dos setores</h2>
+      <p class="lead">
+        Cada setor responde a uma pergunta clínica-simbólica. A leitura ganha profundidade quando os setores
+        são cruzados, e não lidos isoladamente.
+      </p>
+
+      <div class="grid">
+        <div class="mini-card sector-1">
+          <h4>Setor 1 · Etapas</h4>
+          <p><strong>Pergunta:</strong> QUANDO</p>
+          <p>Indica o tempo originário, a fase de vida, a memória primária ou a camada ancestral em que o padrão parece ter se instalado.</p>
+        </div>
+
+        <div class="mini-card sector-2">
+          <h4>Setor 2 · Cenários</h4>
+          <p><strong>Pergunta:</strong> ONDE / COM QUEM</p>
+          <p>Mostra o ambiente, vínculo, instituição, território afetivo ou configuração relacional em que a dor foi aprendida ou reforçada.</p>
+        </div>
+
+        <div class="mini-card sector-3">
+          <h4>Setor 3 · Sombra</h4>
+          <p><strong>Pergunta:</strong> QUAL DOR</p>
+          <p>Revela a defesa, o esquema, a ferida ou o comportamento de sobrevivência. Pode sair direta ou invertida.</p>
+        </div>
+
+        <div class="mini-card sector-4">
+          <h4>Setor 4 · Integração</h4>
+          <p><strong>Pergunta:</strong> COMO CURAR</p>
+          <p>Oferece a chave de cuidado, o verbo de transmutação, o gesto seguro e a micro-ação prática.</p>
+        </div>
+
+        <div class="mini-card sector-0">
+          <h4>Carta 44 · O Espelho</h4>
+          <p><strong>Pergunta:</strong> O QUE REFLETE</p>
+          <p>Lente central. Convida a reconhecer projeções, autorresponsabilidade e o que no externo toca algo interno não integrado.</p>
+        </div>
+      </div>
+
+      <h3>3.1 Matriz de cruzamento recomendada</h3>
+      <ul>
+        <li><strong>[S1 + S2]</strong>: origem temporal + cenário/vínculo. Ajuda a nomear a raiz histórica sem literalizar culpa.</li>
+        <li><strong>[S2 + S3]</strong>: ambiente + defesa criada. Mostra como o contexto moldou o esquema de sobrevivência.</li>
+        <li><strong>[S3 + S4]</strong>: dor + chave de cura. Define o que precisa ser desfeito e o que precisa ser ancorado.</li>
+        <li><strong>[Espelho + qualquer setor]</strong>: pergunta “o que nisso é meu para reconhecer, sem me punir?”</li>
+      </ul>
+
+      <h3>3.2 Mecânica das cartas invertidas do Setor 3</h3>
+      <p>
+        No baralho físico, o texto da polaridade inversa aparece rotacionado 180°. No sistema, a carta invertida
+        ativa a leitura da <strong>face-sombra</strong>: comportamento defensivo extremo, frase-sombra e presente oculto.
+      </p>
+      <div class="alert alert-info">
+        <strong>Invertida não é “carta ruim”.</strong> É um convite para olhar a defesa quando ela já virou prisão.
+        O presente oculto mostra a força que pode ser reintegrada.
+      </div>
+    </section>
+
+    <section class="panel" id="leis">
+      <h2>4. As 9 Leis Apométricas Terapêuticas</h2>
+      <p class="lead">
+        Estas leis organizam a prescrição de qualquer rito de limpeza, desligamento, ancoragem ou transmutação simbólica.
+        Elas existem para tornar o cuidado <strong>seguro, ético, auditável e não invasivo</strong>.
+      </p>
+
+      <ol class="law-list">
+        <li>
+          <strong>Lei da Intenção Ética</strong><br />
+          Todo rito deve declarar explicitamente seu propósito simbólico-terapêutico: organizar consciência,
+          aliviar peso emocional, restabelecer limite interno ou favorecer autocuidado. Não se promete cura,
+          controle de terceiros, remoção de entidades como fato verificável ou resolução mágica.
+        </li>
+        <li>
+          <strong>Lei do Consentimento</strong><br />
+          O consulente pratica apenas se ressoar. Deve ser orientado a interromper se sentir desconforto intenso,
+          tontura, pânico, dissociação, raiva incontrolável ou vontade de se machucar.
+        </li>
+        <li>
+          <strong>Lei da Ancoragem Prévia</strong><br />
+          Antes de qualquer movimento interno mais profundo, ancorar: pés no chão, respiração 4-6, água por perto,
+          ambiente seguro e limite de tempo.
+        </li>
+        <li>
+          <strong>Lei do Diagnóstico Simbólico</strong><br />
+          Nomear o que o rito trabalha usando os setores: origem (S1), cenário/vínculo (S2), sombra/defesa (S3),
+          integração/cura (S4) e, se presente, a lente do Espelho (44).
+        </li>
+        <li>
+          <strong>Lei do Verbo de Transmutação</strong><br />
+          O comando deve ser curto, presente, respeitoso, afirmativo e não violento. Sem ameaça, sem maldição,
+          sem invocação agressiva, sem promessas absolutas.
+        </li>
+        <li>
+          <strong>Lei do Gesto Seguro</strong><br />
+          Usar apenas gestos simples e corporalmente seguros: mãos no corpo, respiração, água, toque em objeto,
+          caminhada leve, escrita, olhar. Proibidos: fogo, ervas, substâncias, jejum, privação de sono,
+          automutilação, apneia ou práticas de risco.
+        </li>
+        <li>
+          <strong>Lei do Ciclo e Duração</strong><br />
+          Rito tem começo, meio e fim. Respeitar tempo e ciclo indicados pela carta. Padrão prudente:
+          sessões curtas, por poucos dias, sem obsessão prática.
+        </li>
+        <li>
+          <strong>Lei do Encerramento e Aterramento</strong><br />
+          Todo rito deve fechar com agradecimento, água, lavagem das mãos/rosto, nomeação de objetos físicos
+          e retorno ao presente. Rito sem fechamento é rito incompleto.
+        </li>
+        <li>
+          <strong>Lei da Observação Clínica e Contraindicação</strong><br />
+          Verificar sempre a contraindicação da carta e o estado do consulente. Em risco clínico ou emocional
+          agudo, suspender prática simbólica intensa e orientar apoio profissional.
+        </li>
+      </ol>
+
+      <div class="alert alert-ok">
+        <strong>Regra de ouro:</strong> a IA não improvisa o rito; ela monta o rito a partir das peças éticas
+        e seguras cadastradas em cada carta. Se faltar peça, usa-se fallback simples: respiração, água,
+        frase curta de cuidado e aterramento.
+      </div>
+    </section>
+
+    <section class="panel" id="fluxo">
+      <h2>5. Fluxo recomendado da sessão</h2>
+      <ol>
+        <li><strong>Acolhimento inicial:</strong> nome, respiração, segurança, consentimento.</li>
+        <li><strong>Escuta do contexto:</strong> queixa, momento atual, o que deseja elaborar.</li>
+        <li><strong>Tiragem:</strong> Jornada de 4, Linha Apométrica Avançada ou Tiragem Relâmpago.</li>
+        <li><strong>Leitura narrativa:</strong> cruzar S1+S2, S2+S3, S3+S4.</li>
+        <li><strong>Espelho, se presente:</strong> identificar projeção e autorresponsabilidade gentil.</li>
+        <li><strong>Protocolo apométrico:</strong> aplicar as 9 leis usando o kit ritualístico das cartas.</li>
+        <li><strong>Micro-ação prática:</strong> uma atitude simples para os próximos dias.</li>
+        <li><strong>Fechamento:</strong> água, aterramento, lembrete de livre-arbítrio e busca profissional se necessário.</li>
+      </ol>
+    </section>
+
+    <section class="panel" id="fichas">
+      <h2>6. Fichas das 44 cartas</h2>
+      <p class="lead">
+        Abaixo estão as mensagens atualizadas, o diagnóstico simbólico, as polaridades do Setor 3 e o
+        kit ritualístico de cada carta. Clique em cada ficha para expandir.
+      </p>
+
+      <div class="cards-by-sector">
+        <div class="sector-title"><span class="dot s1"></span> Setor 1 · Etapas (1–7)</div>
+
+        <details class="carta s1">
+          <summary><span class="num">01</span> A Criança Mágica · Essência</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua luz original permanece intacta. Lembre-se de quem você era.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Bloqueio antes da linguagem; essência pura silenciada precocemente.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>respiração e toque no peito</dd>
+                <dt>Verbo</dt><dd>lembrar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos em concha sobre o esterno, respirar três vezes sentindo o calor das próprias mãos.</dd>
+                <dt>Frase-âncora</dt><dd>Eu lembro da minha luz original e permito que ela respire sem pressa.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, beber um gole de água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, sorrir suavemente para si ou nomear uma qualidade própria.</dd>
+                <dt>Contraindicação</dt><dd>Se surgir choro intenso, parar e acolher; não forçar memória infantil sem apoio.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>uma pedra lisa ou desenho infantil como âncora visual, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">02</span> A Criança Ferida · Vulnerabilidade</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A dor que você carrega não é quem você é. É seguro crescer.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Trauma na primeira infância; regras externas reprimindo a autenticidade.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>acolhimento tátil</dd>
+                <dt>Verbo</dt><dd>acolher</dd>
+                <dt>Gesto seguro</dt><dd>Braços cruzados sobre os ombros, autoabraço lento por três respirações.</dd>
+                <dt>Frase-âncora</dt><dd>Eu acolho a parte ferida em mim com paciência, sem culpá-la por ter sentido dor.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com costas apoiadas, pés no chão, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar o rosto, colocar a mão no coração e dizer: estou aqui.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em revivência traumática aguda; se houver dissociação, parar e buscar apoio.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>um tecido macio ou objeto infantil seguro, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">03</span> O Adolescente · Identidade</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua busca por si mesmo é válida. Você não precisa agradar a todos.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Fase de individuação; bloqueios de aceitação do grupo e rebeldia.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>palavra escrita</dd>
+                <dt>Verbo</dt><dd>validar</dd>
+                <dt>Gesto seguro</dt><dd>Escrever em papel uma frase de defesa própria e ler em voz baixa.</dd>
+                <dt>Frase-âncora</dt><dd>Minha busca por identidade é legítima; não preciso me apagar para pertencer.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, beber água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Guardar o papel, beber água e nomear uma escolha própria do dia.</dd>
+                <dt>Contraindicação</dt><dd>Se a escrita despertar raiva intensa contra pessoas reais, pausar e não enviar mensagens impulsivas.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>papel e caneta como apoio de expressão, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">04</span> A Raiz Ancestral · Herança</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Honre a história de quem veio antes, mas devolva o peso que não é seu.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Memórias sistêmicas; dores herdadas familiares.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>respiração e nomeação</dd>
+                <dt>Verbo</dt><dd>honrar</dd>
+                <dt>Gesto seguro</dt><dd>Inspirar nomeando uma virtude ancestral; expirar devolvendo um peso que não é seu.</dd>
+                <dt>Frase-âncora</dt><dd>Honro quem veio antes, devolvo o que não é meu e sigo com leveza.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, tocar o chão ou uma planta, agradecer.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para culpar vivos; honra não é justificativa de violência ou negligência.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>foto antiga ou objeto familiar como memória respeitosa, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">05</span> A Vida Anterior · Karma</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A bagagem que você carrega vem de longe. É hora de descarregá-la.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> O bloqueio se originou em uma encarnação passada.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>respiração ampla</dd>
+                <dt>Verbo</dt><dd>descarregar</dd>
+                <dt>Gesto seguro</dt><dd>Sentar ereta, inspirar expandindo costelas, expirar longo com som haaa, três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu reconheço a bagagem antiga, agradeço o aprendizado e libero o que já cumpriu seu papel.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local tranquilo, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar mãos, nomear três objetos do presente.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em crises psicóticas, dissociação forte ou medo intenso de possessão; manter como metáfora terapêutica.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>concha ou pedra de rio como âncora de vastidão, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">06</span> O Útero · Origem</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua jornada começou no sagrado. Antes mesmo de ver a luz, você já era amado e protegido.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Memória celular da vida intrauterina; conexão primal com a mãe; traumas de gestação.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>som grave e toque</dd>
+                <dt>Verbo</dt><dd>reconhecer</dd>
+                <dt>Gesto seguro</dt><dd>Mão esquerda no baixo-ventre, mão direita no coração, respirar sentindo os dois toques.</dd>
+                <dt>Frase-âncora</dt><dd>Eu reconheço onde comecei e honro a origem sem carregar o que não é meu.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com costas apoiadas, pés no chão, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, esticar os braços, dizer o próprio nome em voz alta.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em gravidez de risco ou dor abdominal sem avaliação médica.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>pedra redonda ou semente como lembrete de origem, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s1">
+          <summary><span class="num">07</span> O Nascimento · Separação</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Você sobreviveu ao seu primeiro adeus. O corte que separou também foi o que permitiu sua própria luz brilhar.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Trauma de separação do útero; primeiro abandono; choque de nascimento; respiração inicial.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>respiração inicial</dd>
+                <dt>Verbo</dt><dd>receber</dd>
+                <dt>Gesto seguro</dt><dd>Inspirar pelo nariz contando 4, expirar pela boca contando 6, repetindo três vezes como primeiro fôlego.</dd>
+                <dt>Frase-âncora</dt><dd>Eu recebo a vida com segurança; o corte que me separou também me deu existência.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar ereta, pés no chão, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, tocar o peito, agradecer ao próprio fôlego.</dd>
+                <dt>Contraindicação</dt><dd>Se houver falta de ar real, ansiedade intensa ou trauma perinatal agudo, parar e buscar apoio profissional.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>pano branco macio como lembrança de acolhimento, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <div class="sector-title"><span class="dot s2"></span> Setor 2 · Cenários (8–20)</div>
+
+        <details class="carta s2">
+          <summary><span class="num">08</span> O Lar de Origem · Base</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> As paredes do seu passado não limitam o seu futuro.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> A memória está ancorada no clima emocional da casa de infância.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>visualização segura</dd>
+                <dt>Verbo</dt><dd>reorganizar</dd>
+                <dt>Gesto seguro</dt><dd>Fechar os olhos e imaginar uma casa interna com uma janela aberta; respirar três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu habito minha história sem morar na dor dela; a casa interior pode ser renovada.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, beber água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, nomear três coisas seguras no ambiente atual.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para idealizar ou demonizar família; manter responsabilidade própria.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>chave pequena ou fotografia da casa como memória simbólica, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">09</span> A Figura Materna · Nutrição</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Nutra a si mesmo com o amor materno que você precisava.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Conflito com a mãe, envolvendo superproteção ou falta de afeto.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>nutrição simbólica</dd>
+                <dt>Verbo</dt><dd>nutrir</dd>
+                <dt>Gesto seguro</dt><dd>Mãos sobre o abdômen, respirar como se alimentasse uma parte interna com calma.</dd>
+                <dt>Frase-âncora</dt><dd>Eu me nutro com o cuidado que precisei e devolvo à mãe humana o que é dela.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar confortavelmente, água morna ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água morna, comer algo simples com atenção, agradecer ao corpo.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em luto materno recente sem suporte; não substituir vínculo real de cuidado.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>xícara ou colher pequena como gesto de nutrição, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">10</span> A Figura Paterna · Segurança</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Você é o seu próprio pilar agora. Construa sua segurança interna.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Conflito com o pai, envolvendo regras rígidas ou desamparo.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>postura ereta</dd>
+                <dt>Verbo</dt><dd>sustentar</dd>
+                <dt>Gesto seguro</dt><dd>Ficar em pé, pés afastados, joelhos leves, mãos na cintura, respirar três vezes sentindo a base.</dd>
+                <dt>Frase-âncora</dt><dd>Eu construo minha segurança interna e devolvo ao pai humano o que não posso carregar.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Ficar em pé com pés no chão, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, caminhar alguns passos, nomear uma decisão própria.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para justificar ausência ou abuso; autoridade interna não é submissão.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>pedra firme ou pequeno pilar como lembrete de sustentação, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">11</span> A Tribo · Socialização</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua singularidade é a sua força. Encontre a sua verdadeira tribo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Exclusão, bullying ou traumas no ambiente social.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>som e voz</dd>
+                <dt>Verbo</dt><dd>pertencer</dd>
+                <dt>Gesto seguro</dt><dd>Dizer em voz baixa: eu pertenço a mim; bater levemente no peito três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu pertenço primeiro a mim mesmo e escolho vínculos que respeitam minha singularidade.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar ou ficar em pé com segurança, beber água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, enviar mensagem gentil a alguém seguro ou simplesmente respirar.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para forçar inclusão em grupos nocivos; pertencer não é anular-se.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>pena ou objeto de comunidade como lembrete de vínculo saudável, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">12</span> O Dogma · Crenças</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua moralidade pode ser guiada pelo amor, não pelo medo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Bloqueio de regras religiosas ou morais altamente punitivas.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>palavra liberadora</dd>
+                <dt>Verbo</dt><dd>reescrever</dd>
+                <dt>Gesto seguro</dt><dd>Escrever uma regra antiga e ao lado uma frase mais ampla; ler em voz baixa.</dd>
+                <dt>Frase-âncora</dt><dd>Eu solto o medo que vestia roupa de lei e escolho uma moral guiada pelo respeito e pelo amor.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local tranquilo, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Guardar papel, beber água, nomear um valor próprio.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para atacar crenças alheias; liberdade interior não é desrespeito.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>papel dobrado como registro de reescrita interna, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">13</span> O Templo · Votos</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Os votos do passado se cumpriram. Viva a abundância do agora.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Bloqueio de juramentos espirituais antigos (pobreza, obediência).</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>respiração e voto novo</dd>
+                <dt>Verbo</dt><dd>renovar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos juntas diante do peito, inspirar intenção, expirar dizendo: meu voto é a vida.</dd>
+                <dt>Frase-âncora</dt><dd>Eu honro os votos que já cumpriram seu papel e renovo meu compromisso com a vida presente.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura respeitosa, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, tocar o chão, agradecer sem pedir punição.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para romper compromissos reais sem reflexão; voto espiritual não substitui responsabilidade civil ou afetiva.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>objeto sagrado pessoal sem fogo, como âncora de intenção, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">14</span> O Campo de Batalha · Sobrevivência</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A guerra acabou. É seguro baixar as armas e viver em paz.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Trauma severo de perseguição, escassez ou guerra passada.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>respiração de desarmamento</dd>
+                <dt>Verbo</dt><dd>depôr</dd>
+                <dt>Gesto seguro</dt><dd>Abrir as palmas das mãos para cima, expirar longo, repetir três vezes como quem solta armas.</dd>
+                <dt>Frase-âncora</dt><dd>A guerra interna terminou; eu deposito o que não preciso mais carregar e escolho paz.</dd>
+                <dt>Tempo / ciclo</dt><dd>5 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local seguro, pés descalços ou firmes no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar rosto, caminhar devagar, nomear segurança atual.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em TEPT agudo, flashbacks ou ideação violenta sem profissional; rito não substitui tratamento de trauma.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>pedra lisa como âncora de presença, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">15</span> A Ferida Física · Memória Celular</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Seu corpo guarda a memória, mas o seu espírito reescreve a cura.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Dores físicas ou acidentes que marcaram a alma.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>toque gentil</dd>
+                <dt>Verbo</dt><dd>honrar</dd>
+                <dt>Gesto seguro</dt><dd>Colocar a mão sobre área sem dor, respirar suavemente, sem pressionar.</dd>
+                <dt>Frase-âncora</dt><dd>Eu honro o corpo que resistiu e ofereço descanso à memória que ainda dói.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar ou deitar com segurança, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, alongar leve, agradecer ao corpo.</dd>
+                <dt>Contraindicação</dt><dd>Não substituir avaliação médica; evitar toque em lesões, inflamações ou pós-operatório sem liberação.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>faixa de tecido macio como lembrete de cuidado, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">16</span> O Laço Cármico · Dívida</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Eu libero você e me libero de todas as correntes de dor.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Relação de vítima/algoz prendendo por débitos do passado.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>cordão simbólico</dd>
+                <dt>Verbo</dt><dd>liberar</dd>
+                <dt>Gesto seguro</dt><dd>Visualizar um fio entre peito e outro; ao expirar, abrir mãos para lados sem gesto de cortar físico.</dd>
+                <dt>Frase-âncora</dt><dd>Eu libero dívidas antigas com respeito; nenhum nó precisa sangrar para se desfazer.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local tranquilo, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar mãos, nomear três vínculos saudáveis atuais.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para perseguir, amaldiçoar ou cobrar pessoas reais; liberação não é controle.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>fio de lã como representação simbólica, sem queima ou descarte perigoso.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">17</span> A Fogueira · Perseguição</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O fogo do passado não pode mais queimar quem você é hoje.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Cenário cármico: punição por sabedoria, magia ou divergência.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>respiração fresca</dd>
+                <dt>Verbo</dt><dd>resfriar</dd>
+                <dt>Gesto seguro</dt><dd>Inspirar imaginando ar fresco, expirar calor; mãos abertas para baixo como resfriando o peito.</dd>
+                <dt>Frase-âncora</dt><dd>Eu retiro do fogo antigo o que era perseguição e devolvo à cinza o que não precisa mais arder.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local fresco, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água fria, lavar rosto, nomear um pensamento livre.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em crises de raiva, pirofobia ou trauma de violência; não fazer com fogo real.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>pedra escura lisa como lembrança de transformação sem fogo, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">18</span> A Redoma · Superproteção</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O mundo lá fora não é tão perigoso quanto pintaram. Dê o primeiro passo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Cenário de impedimento de explorar o mundo por medo dos pais.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>expansão respiratória</dd>
+                <dt>Verbo</dt><dd>sair</dd>
+                <dt>Gesto seguro</dt><dd>Inspirar abrindo braços lateralmente, expirar relaxando ombros; repetir três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu saio da redoma do medo com calma; o presente pode ser explorado com segurança.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar perto de janela ou porta, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, olhar pela janela, nomear um passo pequeno.</dd>
+                <dt>Contraindicação</dt><dd>Não incentivar exposição imprudente; saída simbólica não ignora riscos reais.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>objeto transparente como lembrete de passagem, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">19</span> A Escola · Socialização</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A sala de aula ensinou mais do que matérias. Hoje, você tem o poder de desaprender quem achou que deveria ser para ser aceito.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Primeiras experiências de exclusão/aceitação no ambiente escolar; bullying; comparação.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>voz própria</dd>
+                <dt>Verbo</dt><dd>desaprender</dd>
+                <dt>Gesto seguro</dt><dd>Dizer em voz baixa: eu não preciso ser nota para valer; tocar o ombro oposto com carinho.</dd>
+                <dt>Frase-âncora</dt><dd>Eu devolvo à escola antiga o julgamento que não me define e escolho aprender com gentileza.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura confortável, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, escrever um elogio próprio, guardar papel.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para reviver bullying sem mediação; se houver vergonha intensa, pausar.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>caderno pequeno como registro de reaprendizagem, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s2">
+          <summary><span class="num">20</span> O Primeiro Amor · Marca Afetiva</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O primeiro amor ensinou seu coração a bater fora do peito. Hoje, a lição se completa: o amor mais seguro mora em você.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Primeira experiência romântica; idealização; perda da inocência; padrão de relacionamento futuro.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>coração e respiração</dd>
+                <dt>Verbo</dt><dd>integrar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos no coração, respirar lembrando uma qualidade aprendida, não uma pessoa.</dd>
+                <dt>Frase-âncora</dt><dd>Eu integro a marca afetiva sem prender meu presente ao primeiro capítulo do amor.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar tranquilo, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, nomear três cuidados que dá a si hoje.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para idealizar ou perseguir ex-vínculos; memória não é mandato.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>flor seca ou papel com palavra como memória doce, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <div class="sector-title"><span class="dot s3"></span> Setor 3 · Sombra (21–36)</div>
+        <p class="lead">
+          Todas as cartas deste setor possuem polaridade direta e inversa. A leitura invertida ativa
+          frase-sombra, comportamento defensivo e presente oculto.
+        </p>
+
+        <details class="carta s3">
+          <summary><span class="num">21</span> A Rejeição · Inadequação</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O verdadeiro pertencimento começa em si mesmo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Moldagem excessiva aos outros por medo de exclusão. Anula a própria presença para evitar a dor de ser excluído.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Inadequação</strong> — Moldagem excessiva aos outros por medo de exclusão. Anula a própria presença para evitar a dor de ser excluído.</p>
+              <p><span class="tag">Inversa</span> <strong>Arrogância Defensiva / Isolamento</strong></p>
+              <p><strong>Frase-sombra:</strong> “Ninguém é bom o suficiente para mim.”</p>
+              <p><strong>Comportamento:</strong> Rejeita os outros antes de ser rejeitado. Isolamento orgulhoso como escudo.</p>
+              <p><strong>Presente oculto:</strong> A capacidade de estar bem na própria companhia.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>presença corporal</dd>
+                <dt>Verbo</dt><dd>ocupar</dd>
+                <dt>Gesto seguro</dt><dd>Pés firmes, mãos abertas ao lado do corpo, dizer: eu existo aqui; respirar três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu ocupo meu lugar sem me anular; pertenço a mim antes de pertencer a qualquer grupo.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Ficar em pé ou sentado com pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, olhar-se sem julgamento, nomear uma presença própria.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em isolamento depressivo severo; se solidão virar desespero, buscar apoio.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>objeto que ocupe espaço como lembrete de presença, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">22</span> O Abandono · Vazio</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A presença que você busca sempre esteve dentro de você.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Dependência emocional; medo constante de ficar sozinho; busca de preenchimento externo.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Vazio</strong> — Dependência emocional; medo constante de ficar sozinho; busca de preenchimento externo.</p>
+              <p><span class="tag">Inversa</span> <strong>Grude / Simbiose Tóxica</strong></p>
+              <p><strong>Frase-sombra:</strong> “Se eu te soltar, você me deixa.”</p>
+              <p><strong>Comportamento:</strong> Asfixia o outro com medo da perda. Ciúme possessivo e anulação dos limites alheios.</p>
+              <p><strong>Presente oculto:</strong> A capacidade de nutrir e acolher (que deve ser direcionada a si mesmo).</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>autoacolhimento</dd>
+                <dt>Verbo</dt><dd>ficar</dd>
+                <dt>Gesto seguro</dt><dd>Abraçar a si mesmo, dizer: eu fico comigo; respirar três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu fico comigo mesmo quando o outro sai; minha presença interna não abandona.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local seguro, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, preparar algo simples, agradecer à própria companhia.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em luto recente ou ideação suicida; prática de solidão simbólica precisa de rede real.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>objeto de companhia como lembrete de presença, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">23</span> A Traição · Desconfiança</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Voltar a confiar é coragem que começa curando seu coração.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Quebra de segurança; necessidade de controle e bloqueio de intimidade.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Desconfiança</strong> — Quebra de segurança; necessidade de controle e bloqueio de intimidade.</p>
+              <p><span class="tag">Inversa</span> <strong>Paranoia / Traição de Si</strong></p>
+              <p><strong>Frase-sombra:</strong> “Todos me trairão; eu apenas chego primeiro.”</p>
+              <p><strong>Comportamento:</strong> Desconfia de todos e acaba traindo a si mesmo e aos que ama por antecipação. Autossabotagem de vínculos.</p>
+              <p><strong>Presente oculto:</strong> O discernimento aguçado e a intuição de proteção.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>respiração de discernimento</dd>
+                <dt>Verbo</dt><dd>proteger</dd>
+                <dt>Gesto seguro</dt><dd>Mãos em escudo diante do peito, inspirar clareza, expirar suspeita rígida.</dd>
+                <dt>Frase-âncora</dt><dd>Eu protejo meu coração com discernimento, não com prisão; confio primeiro em mim.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura alerta mas segura, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, escrever um limite claro, guardar.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para vigiar, acusar ou testar pessoas reais; proteção não é controle.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>chave pequena como lembrete de acesso próprio, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">24</span> A Culpa · Autossabotagem</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Você fez o melhor com a consciência que tinha. Perdoe-se.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Internalização do erro; dificuldade em se permitir ser feliz; sensação de precisar pagar por algo.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Autossabotagem</strong> — Internalização do erro; dificuldade em se permitir ser feliz; sensação de precisar pagar por algo.</p>
+              <p><span class="tag">Inversa</span> <strong>Vitimismo / Rigidez Moral</strong></p>
+              <p><strong>Frase-sombra:</strong> “Se eu me puno tanto, por que você seria poupado?”</p>
+              <p><strong>Comportamento:</strong> Cobra perfeição de si e dos outros. Transforma a culpa em julgamento cruel e intolerância.</p>
+              <p><strong>Presente oculto:</strong> O senso de responsabilidade e ética profunda.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>perdão interno</dd>
+                <dt>Verbo</dt><dd>perdoar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos abertas sobre joelhos, expirar dizendo: eu me perdoo; três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu me perdoo pelo que fiz com a consciência que tinha e escolho reparar sem me punir.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar rosto, nomear uma atitude reparadora possível.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para absolver crimes ou responsabilidades reais; perdão interno não elimina consequências.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>papel com palavra perdão como lembrete de alívio, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">25</span> A Submissão · Prisão</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A chave da sua gaiola está nas suas mãos.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Perda do poder pessoal para sobreviver a ambientes opressores; silenciamento da própria voz.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Prisão</strong> — Perda do poder pessoal para sobreviver a ambientes opressores; silenciamento da própria voz.</p>
+              <p><span class="tag">Inversa</span> <strong>Tirania Oculta / Manipulação</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu cedo sempre — e cobro tudo depois.”</p>
+              <p><strong>Comportamento:</strong> A submissão vira manipulação passivo-agressiva. Controla o ambiente através da fraqueza e da chantagem emocional.</p>
+              <p><strong>Presente oculto:</strong> A adaptabilidade e a resiliência silenciosa.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>voz e postura</dd>
+                <dt>Verbo</dt><dd>erguer</dd>
+                <dt>Gesto seguro</dt><dd>Endireitar coluna, olhar à frente, dizer baixinho: minha voz existe; respirar três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu devolvo ao opressor antigo o poder que não é dele e recupero minha voz com responsabilidade.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Ficar em pé com segurança, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, caminhar ereta, nomear um limite pequeno.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para confrontar abusador sem plano de segurança; libertação simbólica não substitui proteção real.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>porta pequena ou maçaneta como lembrete de saída, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">26</span> A Vergonha · Ocultação</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Tire a máscara. Sua verdade é digna de amor.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Medo de exposição; crença de ser internamente falho; uso de máscaras sociais pesadas.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Ocultação</strong> — Medo de exposição; crença de ser internamente falho; uso de máscaras sociais pesadas.</p>
+              <p><span class="tag">Inversa</span> <strong>Narcisismo Defensivo / Exposição Forçada</strong></p>
+              <p><strong>Frase-sombra:</strong> “Se eu brilhar alto demais, ninguém verá o meu defeito.”</p>
+              <p><strong>Comportamento:</strong> Exagera na arrogância para esconder a vergonha. Busca validação externa obsessiva e ostentação.</p>
+              <p><strong>Presente oculto:</strong> A autenticidade crua e a vulnerabilidade corajosa.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>olhar gentil</dd>
+                <dt>Verbo</dt><dd>revelar</dd>
+                <dt>Gesto seguro</dt><dd>Cobrir rosto com mãos, respirar, descobrir devagar como quem se apresenta com cuidado.</dd>
+                <dt>Frase-âncora</dt><dd>Eu posso ser vista sem ser destruída; minha humanidade merece acolhida.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local privado, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, lavar rosto, dizer um nome próprio com carinho.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em exposição pública traumática ou vergonha paralisante sem apoio; não forçar compartilhamento.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>véu leve ou tecido como transição segura, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">27</span> A Injustiça · Rigidez</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Abaixe os escudos. O prazer também é um direito seu.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Frieza e perfeccionismo gerados por sentimento de não merecimento.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Rigidez</strong> — Frieza e perfeccionismo gerados por sentimento de não merecimento.</p>
+              <p><span class="tag">Inversa</span> <strong>Caos / Revolta</strong></p>
+              <p><strong>Frase-sombra:</strong> “Se é injusto comigo, serei injusto com o mundo.”</p>
+              <p><strong>Comportamento:</strong> Comportamento rebelde, destrutivo e niilista como resposta à dor de não merecimento.</p>
+              <p><strong>Presente oculto:</strong> O senso inabalável de justiça e equidade.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>equilíbrio respiratório</dd>
+                <dt>Verbo</dt><dd>equilibrar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos em níveis diferentes, inspirar trazendo uma ao centro, expirar soltando rigidez.</dd>
+                <dt>Frase-âncora</dt><dd>Eu solto a cobrança que me congela e escolho justiça com misericórdia, começando por mim.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura equilibrada, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, nomear algo que pode ser solto hoje.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para alimentar ressentimento ou vingança; justiça interna não é punição.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>balança pequena ou pedra equilibrada como lembrete de equidade, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">28</span> A Privação · Frieza</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Você é digno de receber amor transbordante, não migalhas.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Esquema de Privação Emocional; o afeto parece indisponível; crença de não merecer receber.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Frieza</strong> — Esquema de Privação Emocional; o afeto parece indisponível; crença de não merecer receber.</p>
+              <p><span class="tag">Inversa</span> <strong>Ganância / Excesso</strong></p>
+              <p><strong>Frase-sombra:</strong> “Ninguém me nutriu: agora eu devoro o mundo.”</p>
+              <p><strong>Comportamento:</strong> Tenta preencher o vazio com excessos (comida, compras, sexo, trabalho). Acumula para não sentir a falta.</p>
+              <p><strong>Presente oculto:</strong> A capacidade de desfrutar e a generosidade.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>receber simples</dd>
+                <dt>Verbo</dt><dd>receber</dd>
+                <dt>Gesto seguro</dt><dd>Palmas para cima, receber um gole de água devagar, dizer: eu posso receber.</dd>
+                <dt>Frase-âncora</dt><dd>Eu me permito receber o cuidado que criei falta; não preciso mendigar amor nem devorar o mundo.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com segurança, água ao lado, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, comer algo nutritivo com atenção, agradecer.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em transtornos alimentares ativos sem profissional; receber não é compulsão.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>copo simples como lembrete de recepção, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">29</span> O Emaranhamento · Simbiose</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Cortar os cordões não é desamor, é o início da sua vida.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Falta de identidade própria por fusão com família ou parceiro.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Simbiose</strong> — Falta de identidade própria por fusão com família ou parceiro.</p>
+              <p><span class="tag">Inversa</span> <strong>Egoísmo / Frieza Relacional</strong></p>
+              <p><strong>Frase-sombra:</strong> “Ninguém me alcança; assim ninguém me prende.”</p>
+              <p><strong>Comportamento:</strong> Corta vínculos de forma brutal para se proteger. Evita qualquer dependência saudável, tornando-se inacessível.</p>
+              <p><strong>Presente oculto:</strong> A capacidade de estabelecer limites saudáveis.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>limite tátil</dd>
+                <dt>Verbo</dt><dd>distinguir</dd>
+                <dt>Gesto seguro</dt><dd>Mãos separando espaço diante do peito, dizer: eu sou eu, você é você.</dd>
+                <dt>Frase-âncora</dt><dd>Eu desfaço fusões que apagam minha identidade e escolho vínculos com respiro.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, caminhar sozinho alguns minutos, nomear preferência própria.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para cortar relações reais impulsivamente; distinção simbólica não é abandono.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>fio separado como lembrete de individualidade, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">30</span> A Exigência · Exaustão</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Seu valor não é medido pela sua produtividade. Descanse.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Esquema de Padrões Inflexíveis; perfeccionismo paralisante; nunca está bom o suficiente.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Exaustão</strong> — Esquema de Padrões Inflexíveis; perfeccionismo paralisante; nunca está bom o suficiente.</p>
+              <p><span class="tag">Inversa</span> <strong>Procrastinação / Desistência</strong></p>
+              <p><strong>Frase-sombra:</strong> “Se não sai perfeito, não sai.”</p>
+              <p><strong>Comportamento:</strong> O medo de não ser perfeito gera paralisia total. Desiste antes de começar ou entrega trabalhos pela metade.</p>
+              <p><strong>Presente oculto:</strong> A excelência e o foco disciplinado (quando equilibrado).</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>descanso programado</dd>
+                <dt>Verbo</dt><dd>descansar</dd>
+                <dt>Gesto seguro</dt><dd>Sentar, soltar ombros, fechar olhos 1 minuto sem meta; respirar normal.</dd>
+                <dt>Frase-âncora</dt><dd>Eu descanso sem culpa; meu valor não depende de produção perfeita.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar confortavelmente, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, fazer uma tarefa incompleta de propósito e observar.</dd>
+                <dt>Contraindicação</dt><dd>Não usar como fuga de responsabilidades urgentes; descanso não é negligência.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>ampulheta ou relógio parado como lembrete de pausa, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">31</span> A Fragmentação · Desconexão</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> É seguro chamar todas as partes dispersas de volta para casa.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Trauma causou perda de alma; apatia profunda e despersonalização.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Desconexão</strong> — Trauma causou perda de alma; apatia profunda e despersonalização.</p>
+              <p><span class="tag">Inversa</span> <strong>Dissociação / Fuga</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu vivo onde a dor não me encontra.”</p>
+              <p><strong>Comportamento:</strong> Vive no mundo da fantasia, vícios ou distrações constantes para não sentir a realidade.</p>
+              <p><strong>Presente oculto:</strong> A capacidade de visão ampla e criatividade.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>reunião interna</dd>
+                <dt>Verbo</dt><dd>chamar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos em concha diante do peito, inspirar chamando partes dispersas, expirar aconchegando.</dd>
+                <dt>Frase-âncora</dt><dd>Eu chamo com gentileza as partes de mim que se dispersaram; aqui há lugar para todas.</dd>
+                <dt>Tempo / ciclo</dt><dd>5 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local muito seguro, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, tocar cinco sentidos: ver, ouvir, tocar, cheirar, saborear algo seguro.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em dissociação severa, psicose ou trauma agudo sem profissional; se perder contato com realidade, parar.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>pedrinhas separadas como lembrete de reunião interna, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">32</span> A Roda · Repetição</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A lição só se repete até ser aprendida. Escolha diferente.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Repetição do mesmo erro cármico em várias encarnações ou ao longo da vida.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Repetição</strong> — Repetição do mesmo erro cármico em várias encarnações ou ao longo da vida.</p>
+              <p><span class="tag">Inversa</span> <strong>Estagnação / Medo da Mudança</strong></p>
+              <p><strong>Frase-sombra:</strong> “Esta dor eu conheço; dela eu não saio.”</p>
+              <p><strong>Comportamento:</strong> Recusa-se a aprender a lição. Fica preso no mesmo ciclo por conforto conhecido, mesmo que doloroso.</p>
+              <p><strong>Presente oculto:</strong> A persistência e a sabedoria cíclica.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>movimento circular</dd>
+                <dt>Verbo</dt><dd>escolher</dd>
+                <dt>Gesto seguro</dt><dd>Girar devagar o tronco ou mãos em círculo, parar e escolher uma direção nova.</dd>
+                <dt>Frase-âncora</dt><dd>Eu reconheço o ciclo que se repete e escolho um passo diferente, mesmo pequeno.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Ficar em pé ou sentado com equilíbrio, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, escrever uma escolha diferente para hoje.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para se culpar por repetir; repetição não é sentença.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>objeto circular como lembrete de ciclo, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">33</span> O Fracasso · Inadequação</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A ponte não precisa ser perfeita para ser cruzada. Conclua.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Esquema de Fracasso; crença de que sempre dará errado, gerando paralisia e autossabotagem.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Inadequação</strong> — Esquema de Fracasso; crença de que sempre dará errado, gerando paralisia e autossabotagem.</p>
+              <p><span class="tag">Inversa</span> <strong>Imprudência / Arrogância</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu salto sem rede: assim ninguém vê o meu medo.”</p>
+              <p><strong>Comportamento:</strong> Age sem planejamento para provar que consegue, ignorando riscos e falhando por excesso de confiança.</p>
+              <p><strong>Presente oculto:</strong> A coragem de tentar e a humildade para recomeçar.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>conclusão mínima</dd>
+                <dt>Verbo</dt><dd>concluir</dd>
+                <dt>Gesto seguro</dt><dd>Terminar um gesto simples: dobrar papel, guardar objeto, dizer: concluí.</dd>
+                <dt>Frase-âncora</dt><dd>Eu concluo sem perfeição; um passo terminado vale mais que um plano perfeito.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com algo simples à mão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, celebrar algo pequeno.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em depressão com paralisia severa sem apoio; micro-ação deve ser realista.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>papel dobrado como prova de conclusão, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">34</span> O Sacrifício · Esgotamento</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Cuidar dos outros não exige que você se esvazie. Nutra-se.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Esquema de Autossacrifício; necessidade compulsiva de salvar outros, esvaziando-se.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Esgotamento</strong> — Esquema de Autossacrifício; necessidade compulsiva de salvar outros, esvaziando-se.</p>
+              <p><span class="tag">Inversa</span> <strong>Ressentimento / Cobrança Oculta</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu me esvazio por você — e depois cobro a conta.”</p>
+              <p><strong>Comportamento:</strong> Cobre o preço do seu sacrifício. Faz por obrigação e depois culpa o outro por sua exaustão.</p>
+              <p><strong>Presente oculto:</strong> A compaixão profunda e o amor altruísta.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>nutrir-se</dd>
+                <dt>Verbo</dt><dd>nutrir</dd>
+                <dt>Gesto seguro</dt><dd>Mãos no estômago, respirar recebendo, dizer: eu também mereço cuidado.</dd>
+                <dt>Frase-âncora</dt><dd>Eu cuido dos outros sem me esvaziar; minha compaixão começa em mim.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com segurança, água ou chá, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, fazer uma refeição atenta, recusar um pedido pequeno se necessário.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para abandonar dependentes reais; autocuidado não é negligência.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>colher como lembrete de nutrição própria, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">35</span> A Raiva Reprimida · Fúria Silenciada</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Sua raiva não é um monstro, é um guardião. Dê voz a essa energia vital com sabedoria, em vez de deixá-la queimar você por dentro.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Raiva não expressa; medo da própria força; explosões passivo-agressivas e somatização.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Fúria Silenciada</strong> — Raiva não expressa; medo da própria força; explosões passivo-agressivas e somatização.</p>
+              <p><span class="tag">Inversa</span> <strong>Destruição / Agressividade</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu calei tanto que agora só sei explodir.”</p>
+              <p><strong>Comportamento:</strong> A raiva explode de forma descontrolada, verbal ou fisicamente. Queima pontes e magoa profundamente.</p>
+              <p><strong>Presente oculto:</strong> A força vital, a assertividade e a capacidade de impor limites.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>expiração forte segura</dd>
+                <dt>Verbo</dt><dd>limitar</dd>
+                <dt>Gesto seguro</dt><dd>Expirar com som haa empurrando as mãos para frente sem agredir; três vezes.</dd>
+                <dt>Frase-âncora</dt><dd>Eu dou forma à minha raiva sem destruir; minha força protege limites, não fere.</dd>
+                <dt>Tempo / ciclo</dt><dd>4 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local seguro, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, caminhar rápido alguns minutos, escrever carta não enviada.</dd>
+                <dt>Contraindicação</dt><dd>Não usar em agressividade ativa, risco de violência ou mania; se raiva escapar do controle, procurar ajuda.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>almofada ou tecido resistente como descarga segura, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s3">
+          <summary><span class="num">36</span> O Ciúme · Posse</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O ciúme é o medo da perda disfarçado de amor. A verdadeira segurança não está em prender o outro, mas em saber que você já é inteiro.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Medo de perda; insegurança; necessidade de controle; sombra da possessividade.</p>
+            <div class="polarity">
+              <h4>Polaridade</h4>
+              <p><span class="tag">Direta</span> <strong>Posse</strong> — Medo de perda; insegurança; necessidade de controle; sombra da possessividade.</p>
+              <p><span class="tag">Inversa</span> <strong>Indiferença Fria / Abandono Preventivo</strong></p>
+              <p><strong>Frase-sombra:</strong> “Eu não sinto ciúme: eu não sinto nada.”</p>
+              <p><strong>Comportamento:</strong> Torna-se emocionalmente indisponível para não sentir ciúmes. Usa o não me importo como defesa.</p>
+              <p><strong>Presente oculto:</strong> O amor próprio e a valorização da própria unicidade.</p>
+            </div>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>respiração de inteireza</dd>
+                <dt>Verbo</dt><dd>soltar</dd>
+                <dt>Gesto seguro</dt><dd>Mãos abertas, expirar soltando controle, dizer: eu sou inteiro sem vigiar.</dd>
+                <dt>Frase-âncora</dt><dd>Eu solto a posse disfarçada de amor e escolho segurança que nasce em mim.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura aberta, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, fazer uma atividade prazerosa solo.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para justificar vigilância ou controle; ciúme intenso pode exigir terapia.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>pedra de centro como lembrete de inteireza, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <div class="sector-title"><span class="dot s4"></span> Setor 4 · Integração (37–43)</div>
+
+        <details class="carta s4">
+          <summary><span class="num">37</span> O Acolhimento · Compaixão</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Eu vejo sua dor, e escolho curá-la com gentileza.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Oferecer segurança e amor à dor reprimida no inconsciente.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>autoabraço</dd>
+                <dt>Verbo</dt><dd>acolher</dd>
+                <dt>Gesto seguro</dt><dd>Abraçar a si mesmo, respirar três vezes, dizer: estou aqui.</dd>
+                <dt>Frase-âncora</dt><dd>Eu acolho minha dor sem combatê-la; gentileza interna também é força.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar ou deitar com segurança, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, descansar, agradecer ao próprio cuidado.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para evitar responsabilidades; acolhimento não é vitimização.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>cobertor leve como lembrete de proteção, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">38</span> A Voz Própria · Limites</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Seu silêncio não o protege mais. Sua verdade tem direito de existir.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Resgate da expressão autêntica; necessidade de falar a verdade e impor limites.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>fala pausada</dd>
+                <dt>Verbo</dt><dd>falar</dd>
+                <dt>Gesto seguro</dt><dd>Dizer uma frase verdadeira em voz baixa, depois um pouco mais firme.</dd>
+                <dt>Frase-âncora</dt><dd>Eu falo minha verdade com respeito; meu silêncio não me protege mais do que minha voz.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com postura ereta, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, registrar uma fala pequena do dia.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para agressão verbal ou exposição desnecessária; verdade sem crueldade.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>gravador ou papel como apoio de expressão, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">39</span> O Desapego · Libertação</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Deixe ir o que acabou. O fim é o espaço para um novo começo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Aceitação do fato histórico e liberação do ressentimento.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>água corrente</dd>
+                <dt>Verbo</dt><dd>devolver</dd>
+                <dt>Gesto seguro</dt><dd>Abrir as palmas das mãos para frente ao expirar, soltando o ar com um haaa leve.</dd>
+                <dt>Frase-âncora</dt><dd>Eu devolvo ao passado o que já cumpriu seu papel. O que é meu, eu angoro. O que não é, eu libero.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Pés descalços no chão, três respirações 4-6, copo d'água ao lado.</dd>
+                <dt>Fechamento</dt><dd>Beber três goles de água, lavar as mãos até o pulso, nomear em voz alta três objetos físicos ao redor.</dd>
+                <dt>Contraindicação</dt><dd>Suspender se houver dissociação aguda, choro incontrolável ou histórico psiquiátrico sem acompanhamento. Não usar em jejum ou privação de sono.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>pena branca ou concha como âncora visual, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">40</span> A Autonomia · Poder</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O roteiro da sua vida pertence a você. Assuma a autoria.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Reconectar com a capacidade de fazer escolhas maduras no presente.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>decisão</dd>
+                <dt>Verbo</dt><dd>escolher</dd>
+                <dt>Gesto seguro</dt><dd>Colocar uma mão sobre o coração e outra na barriga, dizer: eu escolho.</dd>
+                <dt>Frase-âncora</dt><dd>Eu assumo a autoria da minha vida com cuidado; nenhuma voz antiga decide por mim.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar ou ficar em pé com segurança, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, tomar uma decisão pequena e registrar.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para isolamento ou recusa de ajuda; autonomia inclui pedir apoio.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>assinatura pessoal como lembrete de autoria, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">41</span> A Rescisão · Encerramento</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> Eu anulo todos os acordos do passado que não servem à minha luz.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Recurso espiritual: quebra de contratos e pactos de outras vidas.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>contrato simbólico</dd>
+                <dt>Verbo</dt><dd>anular</dd>
+                <dt>Gesto seguro</dt><dd>Escrever: eu anulo acordos que ferem minha luz, e dobrar papel; não queimar.</dd>
+                <dt>Frase-âncora</dt><dd>Eu anulo acordos antigos que não servem à minha vida presente, sem guerra e sem dívida.</dd>
+                <dt>Tempo / ciclo</dt><dd>5 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Local seguro, pés no chão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, guardar papel em envelope, nomear um compromisso atual saudável.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para negar responsabilidades legais ou afetivas; rescisão espiritual não substitui consequências reais.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não</dd>
+                <dt>Símbolo de apoio</dt><dd>envelope ou selo como registro simbólico, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">42</span> O Dom Esquecido · Maestria</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A sabedoria que você procura fora já pulsa dentro da sua alma.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Resgate de capacidades de cura ou sabedoria de outras vidas.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>moderada</dd>
+                <dt>Elemento</dt><dd>prática breve</dd>
+                <dt>Verbo</dt><dd>exercitar</dd>
+                <dt>Gesto seguro</dt><dd>Fazer por 2 minutos uma habilidade simples: desenhar, cantar, rezar, organizar.</dd>
+                <dt>Frase-âncora</dt><dd>Eu reativo meu dom sem pressão; talento é serviço alegre, não prova de valor.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Sentar com material simples à mão, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, agradecer ao gesto criado.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para cobrança de missão grandiosa; dom pode ser pequeno e diário.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>instrumento simples ou caderno como apoio de prática, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <details class="carta s4">
+          <summary><span class="num">43</span> A Celebração · Alegria</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> A cura não é apenas o fim da dor, é a permissão para a alegria. Celebre a leveza e a liberdade de quem você se tornou.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Integração através do prazer; permissão para celebrar; resgate da leveza e da gratidão.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>leve</dd>
+                <dt>Elemento</dt><dd>movimento alegre</dd>
+                <dt>Verbo</dt><dd>celebrar</dd>
+                <dt>Gesto seguro</dt><dd>Dançar devagar ou balançar o corpo por 1 minuto, sorrindo.</dd>
+                <dt>Frase-âncora</dt><dd>Eu celebro a vida que se cura em mim; alegria também é prática séria.</dd>
+                <dt>Tempo / ciclo</dt><dd>2 min · 3 dias</dd>
+                <dt>Ancoragem prévia</dt><dd>Espaço seguro para mover-se, água, três respirações 4-6.</dd>
+                <dt>Fechamento</dt><dd>Beber água, registrar um prazer simples.</dd>
+                <dt>Contraindicação</dt><dd>Não usar para negar dor; celebração não é fuga.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Sim</dd>
+                <dt>Símbolo de apoio</dt><dd>flor ou música como lembrete de leveza, sem promessa.</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+
+        <div class="sector-title"><span class="dot s0"></span> Coringa · O Espelho (44)</div>
+
+        <details class="carta s0" open>
+          <summary><span class="num">44</span> O Espelho · Projeção / Autorresponsabilidade</summary>
+          <div class="card-body">
+            <p class="msg"><strong>Mensagem:</strong> O que você mais julga ou rejeita no outro é a sombra que você ainda recusa a integrar em si mesmo.</p>
+            <p class="diag"><strong>Diagnóstico simbólico:</strong> Projeção inconsciente; percepção de que o mundo externo reflete a alma. Fechamento de ciclo e lente da tiragem.</p>
+            <p><strong>Pergunta clínica:</strong> O que exatamente nesta situação ou pessoa ativa o seu incômodo e precisa ser reconhecido dentro de você agora?</p>
+            <p><strong>Função na tiragem:</strong> Quando sorteada, posiciona-se no centro da mesa como lente de leitura de todas as demais cartas.</p>
+            <div class="ritual-box">
+              <h4>Kit ritualístico</h4>
+              <dl class="kv">
+                <dt>Intensidade</dt><dd>profunda</dd>
+                <dt>Elemento</dt><dd>espelho físico e olhar próprio</dd>
+                <dt>Verbo</dt><dd>assumir</dd>
+                <dt>Gesto seguro</dt><dd>Olhar-se por 30 segundos em espelho, respirando, sem julgamento. Se doer demais, desviar o olhar e voltar ao corpo.</dd>
+                <dt>Frase-âncora</dt><dd>O que vejo no outro, reconheço em mim. Assumo minha parte sem me punir. Devolvo ao outro a parte que é dele.</dd>
+                <dt>Tempo / ciclo</dt><dd>3 min · 1 dia</dd>
+                <dt>Ancoragem prévia</dt><dd>Sozinha, sem pressa. Três respirações 4-6. Permitir-se sentir sem consertar.</dd>
+                <dt>Fechamento</dt><dd>Cobrir o espelho ou desviar o olhar, beber água, lavar o rosto, caminhar 2 minutos.</dd>
+                <dt>Contraindicação</dt><dd>NÃO usar em episódio depressivo agudo, ideação suicida, dissociação ou após trauma recente sem presença de profissional. Rito do espelho é intenso.</dd>
+                <dt>Diálogo com o Espelho</dt><dd>Não se aplica como lente sobre si mesma</dd>
+                <dt>Símbolo de apoio</dt><dd>nenhum; o espelho já é o símbolo</dd>
+              </dl>
+            </div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel" id="checklist">
+      <h2>7. Checklist do terapeuta antes de prescrever rito</h2>
+      <ul class="checklist">
+        <li>O consulente compreendeu que o trabalho é simbólico-terapêutico e não substitui tratamento?</li>
+        <li>Houve consentimento claro para praticar?</li>
+        <li>O contexto atual permite prática introspectiva? (sem crise aguda, sem risco iminente)</li>
+        <li>A carta do Setor 4 foi usada como chave de integração, e não como punição ou cobrança?</li>
+        <li>O gesto indicado é fisicamente seguro?</li>
+        <li>A frase-âncora está respeitosa, curta e sem promessa mágica?</li>
+        <li>Foi definido tempo e ciclo prudentes?</li>
+        <li>Foi incluído fechamento com água/aterramento?</li>
+        <li>A contraindicação da carta foi considerada?</li>
+        <li>Foi lembrado o livre-arbítrio e a autonomia do consulente?</li>
+      </ul>
+
+      <div class="alert alert-danger">
+        <strong>Se qualquer resposta for “não” ou “não sei”,</strong> simplifique o rito para o fallback seguro:
+        respiração 4-6, água, frase gentil de autocuidado e encerramento físico.
+      </div>
+    </section>
+
+    <section class="panel" id="usoc-app">
+      <h2>8. Como usar no sistema</h2>
+      <ol>
+        <li>Abra a aba <strong>🌀 Regressão</strong>.</li>
+        <li>Escolha o método: <strong>Jornada de 4 Cartas</strong>, <strong>Linha Apométrica Avançada</strong> ou <strong>Tiragem Relâmpago</strong>.</li>
+        <li>Preencha o contexto/queixa com respeito e objetividade.</li>
+        <li>Sorteie ou selecione as cartas por setor.</li>
+        <li>Marque invertida apenas quando a carta do Setor 3 cair com a face-sombra ativa.</li>
+        <li>Opcionalmente, marque <strong>O Espelho (44)</strong> como lente central.</li>
+        <li>Gere a mesa visual e depois clique em <strong>Interpretar Tiragem</strong>.</li>
+        <li>Revise a saída da IA como terapeuta humano: a palavra final é sua.</li>
+      </ol>
+
+      <div class="alert alert-info">
+        <strong>Nota técnica:</strong> o sistema foi preparado para que a IA utilize os campos estruturados
+        do <code>regressao.json</code> e o protocolo das 9 leis. Isso reduz improvisos e torna a prescrição
+        mais auditável, segura e alinhada à sua linhagem terapêutica.
+      </div>
+    </section>
+
+    <footer>
+      Manual do Oráculo de Regressão Terapêutica, Apometria e Memória de Alma · v2.2<br />
+      Ferramenta de autoconhecimento e apoio simbólico. Respeite o livre-arbítrio, os limites clínicos e a autonomia do consulente.
+    </footer>
+  </div>
+</body>
+</html>

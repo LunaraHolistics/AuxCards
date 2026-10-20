@@ -92,6 +92,7 @@ MANUAIS = {
     "Sibilla Italiana (54 cartas)": "manual-sibilla-completo.html",
     "Tarô Tradicional (78 cartas)": "manual-taro-completo.html",
     "Baralho Cigano (36 cartas)": "manual-cigano-completo.html",
+    "Regressão Terapêutica (44 cartas)": "manual-regressao-completo.html",
 }
 
 TEMAS_BUZIOS = [
